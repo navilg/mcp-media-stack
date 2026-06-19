@@ -152,7 +152,7 @@ def get_trakt_public_watched_movies(username: str, days: int = 30) -> list[dict]
     return watched_movies
 
 @mcp.tool
-def get_trakt_public_liked_movies(username: str, threshold_user_rating: float, days: int = 30) -> list[dict]:
+def get_trakt_public_liked_movies(username: str, threshold_user_rating: float = 7) -> list[dict]:
     """
     Get liked movies from a public Trakt profile.
     """
@@ -165,15 +165,10 @@ def get_trakt_public_liked_movies(username: str, threshold_user_rating: float, d
 
     endpoint = f"{TRAKT_API_BASE}/users/{username}/ratings/movies"
 
-    now_utc = datetime.now(timezone.utc)
-    start_at = (now_utc - timedelta(days=days)).isoformat().replace("+00:00", "Z")
-    end_at = now_utc.isoformat().replace("+00:00", "Z")
     params = {
-        "limit": "1000",
+        "limit": "500",
         "extended": "full",
-        "rating": f"{threshold_user_rating}-10",  # Filter ratings greater than or equal to threshold
-        "started_at": start_at,
-        "ended_at": end_at
+        "rating": ",".join(str(r) for r in range(int(threshold_user_rating), 11)),  # Filter ratings greater than or equal to threshold
     }
     headers = {
         "Content-Type": "application/json",
@@ -193,10 +188,10 @@ def get_trakt_public_liked_movies(username: str, threshold_user_rating: float, d
         movie = item.get("movie", {})
         liked_movies.append(
             {
-                "liked_at": item.get("rated_at"),
                 "title": movie.get("title"),
                 "year": movie.get("year"),
-                "rating": movie.get("rating"),
+                "average_rating": movie.get("rating"),
+                "user_rating": item.get("rating"),
                 "genre": movie.get("genres", []),
             }
         )
