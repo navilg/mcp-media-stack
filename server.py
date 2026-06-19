@@ -8,45 +8,6 @@ mcp = FastMCP(name="Media Stack MCP")
 
 TRAKT_API_BASE = "https://api.trakt.tv"
 
-def get_access_token() -> str | None:
-    """
-    Generate refresh token from access token. This is needed because the access token expires after 7 days, while the refresh token can be used to get a new access token without user intervention.
-    """
-
-    refresh_token = os.getenv("TRAKT_REFRESH_TOKEN")
-    if not refresh_token:
-        print("TRAKT_REFRESH_TOKEN is not set. Cannot refresh access token.")
-        return None
-    trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
-    trakt_client_secret = os.getenv("TRAKT_CLIENT_SECRET")
-    if not trakt_client_id or not trakt_client_secret:
-        print("TRAKT_CLIENT_ID and TRAKT_CLIENT_SECRET must be set to refresh access token.")
-        return None
-    
-    token_url = f"{TRAKT_API_BASE}/oauth/token"
-    payload = {
-        "refresh_token": refresh_token,
-        "client_id": trakt_client_id,
-        "client_secret": trakt_client_secret,
-        "redirect_uri": "https://localhost:8000",
-        "grant_type": "refresh_token",
-    }
-
-    try:
-        response = requests.post(token_url, json=payload, timeout=20)
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        print(f"Failed to refresh access token: {exc}")
-        return None
-    
-    token_data = response.json()
-    new_access_token = token_data.get("access_token")
-    if not new_access_token:
-        print("Failed to get new access token from response.")
-        return None
-
-    return new_access_token
-
 
 @mcp.tool
 def check_trakt_profile_privacy(username: str) -> dict:
