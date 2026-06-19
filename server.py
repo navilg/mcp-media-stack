@@ -1,6 +1,10 @@
+from email import header
+
 from fastmcp import FastMCP
 import os
 import requests
+
+from rich.table import header
 import argparse
 from datetime import datetime, timedelta, timezone
 
@@ -209,6 +213,53 @@ def get_trakt_public_liked_movies(username: str | None = None, threshold_user_ra
         )
 
     return liked_movies
+
+@mcp.tool
+def get_tmdb_latest_high_rated_movies(api_key: str | None = None, limit: int = 10, num_days: int = 30, threshold_rating: int = 7, threshold_vote_count: int = 500, language: str = "en-US") -> list[dict]:
+    """
+    Get the latest high-rated movies from TMDb.
+    """
+
+    api_key = api_key or os.getenv("TMDB_API_KEY")
+    if not api_key:
+        return [{"error": "TMDB_API_KEY is not set"}]
+    
+    endpoint = "https://api.themoviedb.org/3/discover/movie"
+    
+    params = {
+        "sort_by": "popularity.desc",
+        "vote_average.gte": threshold_rating,
+        "vote_count.gte": threshold_vote_count,
+        "language": language,
+        "page": 1,
+        "primary_release_date.gte": (datetime.now() - timedelta(days=num_days)).strftime("%Y-%m-%d"),
+    }
+
+    headers = {
+        "accept": "application/json",
+        "authorization": f"Bearer {os.getenv('TMDB_BEARER_TOKEN', '')}"
+    }
+
+    try:
+        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return [{"error": f"Failed to fetch latest movies from TMDb: {exc}"}]
+
+    movies_data = response.json().get("results", [])
+    latest_movies: list[dict] = []
+    for movie in movies_data[:limit]:
+        latest_movies.append(
+            {
+                "title": movie.get("title"),
+                "release_date": movie.get("release_date"),
+                "average_rating": movie.get("vote_average"),
+                "genre_ids": movie.get("genre_ids", []),
+                "overview": movie.get("overview")
+            }
+        )
+
+    return latest_movies
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Media Stack MCP server.")
