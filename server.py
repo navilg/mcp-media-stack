@@ -233,6 +233,7 @@ def get_tmdb_latest_high_rated_movies(api_key: str | None = None, limit: int = 1
         "language": language,
         "page": 1,
         "primary_release_date.gte": (datetime.now() - timedelta(days=num_days)).strftime("%Y-%m-%d"),
+        "primary_release_date.lte": datetime.now().strftime("%Y-%m-%d")
     }
 
     headers = {
