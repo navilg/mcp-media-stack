@@ -1,12 +1,37 @@
 from fastmcp import FastMCP
 import os
+import ssl
 import requests
 import argparse
 from datetime import datetime, timedelta, timezone
+from requests.adapters import HTTPAdapter
+from urllib3.poolmanager import PoolManager
 
 mcp = FastMCP(name="Media Stack MCP")
 
 TRAKT_API_BASE = "https://api.trakt.tv"
+
+
+class TLS12HttpAdapter(HTTPAdapter):
+    """HTTPS adapter that negotiates TLS up to 1.2."""
+
+    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
+        ssl_context = ssl.create_default_context()
+        ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
+        ssl_context.maximum_version = ssl.TLSVersion.TLSv1_2
+        pool_kwargs["ssl_context"] = ssl_context
+        self.poolmanager = PoolManager(
+            num_pools=connections,
+            maxsize=maxsize,
+            block=block,
+            **pool_kwargs,
+        )
+
+
+def _tmdb_get(url: str, params: dict, headers: dict, timeout: int = 20) -> requests.Response:
+    with requests.Session() as session:
+        session.mount("https://", TLS12HttpAdapter())
+        return session.get(url, params=params, headers=headers, timeout=timeout)
 
 
 @mcp.tool
@@ -238,7 +263,7 @@ def get_tmdb_latest_high_rated_movies(limit: int = 50, num_days: int = 30, thres
     }
 
     try:
-        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+        response = _tmdb_get(endpoint, params=params, headers=headers, timeout=20)
         response.raise_for_status()
     except requests.RequestException as exc:
         return [{"error": f"Failed to fetch latest movies from TMDb: {exc}"}]
@@ -281,7 +306,7 @@ def get_tmdb_popular_movies(limit: int = 50, language: str = "en-US") -> list[di
     }
 
     try:
-        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+        response = _tmdb_get(endpoint, params=params, headers=headers, timeout=20)
         response.raise_for_status()
     except requests.RequestException as exc:
         return [{"error": f"Failed to fetch popular movies from TMDb: {exc}"}]
