@@ -10,10 +10,12 @@ TRAKT_API_BASE = "https://api.trakt.tv"
 
 
 @mcp.tool
-def check_trakt_profile_privacy(username: str) -> dict:
+def check_trakt_profile_privacy(username: str | None = None) -> dict:
     """
     Check whether a Trakt user's profile is public or private.
     """
+
+    username = username or os.getenv("TRAKT_USERNAME")
 
     trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
     if not trakt_client_id:
@@ -99,10 +101,12 @@ def check_trakt_profile_privacy(username: str) -> dict:
     }
 
 @mcp.tool
-def get_trakt_public_watched_movies(username: str, days: int = 30) -> list[dict]:
+def get_trakt_public_watched_movies(username: str | None = None, days: int = 30) -> list[dict]:
     """
     Get movies watched in the last N days from a public Trakt profile.
     """
+
+    username = username or os.getenv("TRAKT_USERNAME")
 
     trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
     if not trakt_client_id:
@@ -154,10 +158,12 @@ def get_trakt_public_watched_movies(username: str, days: int = 30) -> list[dict]
     return watched_movies
 
 @mcp.tool
-def get_trakt_public_liked_movies(username: str, threshold_user_rating: int = 7, limit: int = 50) -> list[dict]:
+def get_trakt_public_liked_movies(username: str | None = None, threshold_user_rating: int = 7, limit: int = 50) -> list[dict]:
     """
     Get liked movies from a public Trakt profile.
     """
+
+    username = username or os.getenv("TRAKT_USERNAME")
 
     trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
     if not trakt_client_id:
