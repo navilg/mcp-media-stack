@@ -111,7 +111,7 @@ def get_trakt_public_watched_movies(username: str | None = None, days: int = 30)
     trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
     if not trakt_client_id:
         return [{"error": "TRAKT_CLIENT_ID is not set"}]
-    if not username.strip():
+    if not username or not username.strip():
         return [{"error": "username must not be empty"}]
     if days <= 0:
         return [{"error": "days must be greater than 0"}]
@@ -168,7 +168,7 @@ def get_trakt_public_liked_movies(username: str | None = None, threshold_user_ra
     trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
     if not trakt_client_id:
         return [{"error": "TRAKT_CLIENT_ID is not set"}]
-    if not username.strip():
+    if not username or not username.strip():
         return [{"error": "username must not be empty"}]
     
     rating = ",".join(str(r) for r in range(threshold_user_rating, 11))  # Filter ratings greater than or equal to threshold
@@ -211,14 +211,14 @@ def get_trakt_public_liked_movies(username: str | None = None, threshold_user_ra
     return liked_movies
 
 @mcp.tool
-def get_tmdb_latest_high_rated_movies(api_key: str | None = None, limit: int = 50, num_days: int = 30, threshold_rating: int = 7, threshold_vote_count: int = 500, language: str = "en-US") -> list[dict]:
+def get_tmdb_latest_high_rated_movies(limit: int = 50, num_days: int = 30, threshold_rating: int = 7, threshold_vote_count: int = 500, language: str = "en-US") -> list[dict]:
     """
     Get the latest high-rated movies from TMDb.
     """
 
-    api_key = api_key or os.getenv("TMDB_API_KEY")
-    if not api_key:
-        return [{"error": "TMDB_API_KEY is not set"}]
+    tmdb_bearer_token = os.getenv("TMDB_BEARER_TOKEN")
+    if not tmdb_bearer_token:
+        return [{"error": "TMDB_BEARER_TOKEN is not set"}]
     
     endpoint = "https://api.themoviedb.org/3/discover/movie"
     
@@ -234,7 +234,7 @@ def get_tmdb_latest_high_rated_movies(api_key: str | None = None, limit: int = 5
 
     headers = {
         "accept": "application/json",
-        "authorization": f"Bearer {os.getenv('TMDB_BEARER_TOKEN', '')}"
+        "authorization": f"Bearer {tmdb_bearer_token}"
     }
 
     try:
@@ -259,14 +259,14 @@ def get_tmdb_latest_high_rated_movies(api_key: str | None = None, limit: int = 5
     return latest_movies
 
 @mcp.tool
-def get_tmdb_popular_movies(api_key: str | None = None, limit: int = 50, language: str = "en-US") -> list[dict]:
+def get_tmdb_popular_movies(limit: int = 50, language: str = "en-US") -> list[dict]:
     """
     Get the most popular movies from TMDb.
     """
 
-    api_key = api_key or os.getenv("TMDB_API_KEY")
-    if not api_key:
-        return [{"error": "TMDB_API_KEY is not set"}]
+    tmdb_bearer_token = os.getenv("TMDB_BEARER_TOKEN")
+    if not tmdb_bearer_token:
+        return [{"error": "TMDB_BEARER_TOKEN is not set"}]
     
     endpoint = "https://api.themoviedb.org/3/movie/popular"
     
@@ -277,7 +277,7 @@ def get_tmdb_popular_movies(api_key: str | None = None, limit: int = 50, languag
 
     headers = {
         "accept": "application/json",
-        "authorization": f"Bearer {os.getenv('TMDB_BEARER_TOKEN', '')}"
+        "authorization": f"Bearer {tmdb_bearer_token}"
     }
 
     try:

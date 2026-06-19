@@ -9,8 +9,8 @@ The server currently exposes these MCP tools:
 - `check_trakt_profile_privacy(username=None)`
 - `get_trakt_public_watched_movies(username=None, days=30)`
 - `get_trakt_public_liked_movies(username=None, threshold_user_rating=7, limit=50)`
-- `get_tmdb_latest_high_rated_movies(api_key=None, limit=50, num_days=30, threshold_rating=7, threshold_vote_count=500, language="en-US")`
-- `get_tmdb_popular_movies(api_key=None, limit=50, language="en-US")`
+- `get_tmdb_latest_high_rated_movies(limit=50, num_days=30, threshold_rating=7, threshold_vote_count=500, language="en-US")`
+- `get_tmdb_popular_movies(limit=50, language="en-US")`
 
 ## Prerequisites
 
@@ -29,8 +29,7 @@ Set the following as needed by the tools you call.
 
 ### TMDb
 
-- `TMDB_BEARER_TOKEN` (required by the HTTP authorization header used in TMDb requests)
-- `TMDB_API_KEY` (currently validated by the TMDb tool functions before request execution)
+- `TMDB_BEARER_TOKEN` (required for TMDb tools)
 
 ## Quick start (Docker)
 
@@ -47,7 +46,6 @@ docker run --rm -p 8000:8000 \
   -e TRAKT_CLIENT_ID=your_trakt_client_id \
   -e TRAKT_USERNAME=your_trakt_username \
   -e TMDB_BEARER_TOKEN=your_tmdb_bearer_token \
-  -e TMDB_API_KEY=your_tmdb_api_key \
   --name mcp-media-stack \
   mcp-media-stack:latest
 ```
@@ -60,7 +58,6 @@ Create `.env`:
 TRAKT_CLIENT_ID=your_trakt_client_id
 TRAKT_USERNAME=your_trakt_username
 TMDB_BEARER_TOKEN=your_tmdb_bearer_token
-TMDB_API_KEY=your_tmdb_api_key
 ```
 
 Run with env file:
