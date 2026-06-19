@@ -146,7 +146,8 @@ def get_trakt_public_watched_movies(username: str, days: int = 30) -> list[dict]
                 "year": movie.get("year"),
                 "rating": movie.get("rating"),
                 "genre": movie.get("genres", []),
-                "certification": item.get("certification")
+                "certification": movie.get("certification"),
+                "language": movie.get("language")
             }
         )
 
@@ -195,7 +196,8 @@ def get_trakt_public_liked_movies(username: str, threshold_user_rating: int = 7)
                 "average_rating": movie.get("rating"),
                 "user_rating": item.get("rating"),
                 "genre": movie.get("genres", []),
-                "certification": item.get("certification")
+                "certification": movie.get("certification"),
+                "language": movie.get("language")
             }
         )
 
