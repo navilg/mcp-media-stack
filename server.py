@@ -20,7 +20,7 @@ def check_trakt_profile_privacy(username: str | None = None) -> dict:
     trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
     if not trakt_client_id:
         return {"error": "TRAKT_CLIENT_ID is not set"}
-    if not username.strip():
+    if not username or not username.strip():
         return {"error": "username must not be empty"}
 
     headers = {
