@@ -1,6 +1,6 @@
 # MCP Media Stack
 
-FastMCP server that exposes movie-related tools backed by Trakt and TMDb APIs.
+FastMCP server that exposes movie-related tools backed by Trakt API.
 
 ## Tools
 
@@ -9,27 +9,20 @@ The server currently exposes these MCP tools:
 - `check_trakt_profile_privacy(username=None)`
 - `get_trakt_public_watched_movies(username=None, days=30)`
 - `get_trakt_public_liked_movies(username=None, threshold_user_rating=7, limit=50)`
-- `get_tmdb_latest_high_rated_movies(limit=50, num_days=30, threshold_rating=7, threshold_vote_count=500, language="en-US")`
-- `get_tmdb_popular_movies(limit=50, language="en-US")`
+- `get_trakt_latest_high_rated_movies(days=30, threshold_rating=7, limit=50)`
+- `get_trakt_popular_movies(limit=50)`
 
 ## Prerequisites
 
 - Python 3.11+ (for local run) or Docker (for container run)
-- Trakt API client ID for Trakt tools
-- TMDb bearer token for TMDb tools
+- Trakt API client ID
 
 ## Environment variables
 
-Set the following as needed by the tools you call.
+Set the following as needed:
 
-### Trakt
-
-- `TRAKT_CLIENT_ID` (required for Trakt tools)
+- `TRAKT_CLIENT_ID` (required)
 - `TRAKT_USERNAME` (optional default username if `username` tool argument is omitted)
-
-### TMDb
-
-- `TMDB_BEARER_TOKEN` (required for TMDb tools)
 
 ## Quick start (Docker)
 
@@ -45,7 +38,6 @@ Run container (port 8000):
 docker run --rm -p 8000:8000 \
   -e TRAKT_CLIENT_ID=your_trakt_client_id \
   -e TRAKT_USERNAME=your_trakt_username \
-  -e TMDB_BEARER_TOKEN=your_tmdb_bearer_token \
   --name mcp-media-stack \
   mcp-media-stack:latest
 ```
@@ -57,7 +49,6 @@ Create `.env`:
 ```env
 TRAKT_CLIENT_ID=your_trakt_client_id
 TRAKT_USERNAME=your_trakt_username
-TMDB_BEARER_TOKEN=your_tmdb_bearer_token
 ```
 
 Run with env file:
@@ -78,7 +69,7 @@ python server.py --host 0.0.0.0 --port 8000 --transport streamable-http
 
 ## Test script (using test.env)
 
-A helper script is included to run tool-level checks directly against the Python functions in `server.py`.
+A test script is included to validate tool functionality against the Python functions in `server.py`.
 
 - Create your test env file:
 
@@ -88,22 +79,13 @@ cp test.env.example test.env
 
 - Fill in credentials and test inputs in `test.env`.
 
-- Run all tool tests:
+- Run tests:
 
 ```bash
-python test_server.py --env-file test.env
+python test_server.py
 ```
 
-- Run a single tool test:
-
-```bash
-python test_server.py --env-file test.env --tool get_tmdb_popular_movies
-```
-
-Useful flags:
-
-- `--tool all|check_trakt_profile_privacy|get_trakt_public_watched_movies|get_trakt_public_liked_movies|get_tmdb_latest_high_rated_movies|get_tmdb_popular_movies`
-- `--preview 5` to control how many list items are printed
+The script automatically loads `test.env` and runs all test functions sequentially, printing results for each tool call.
 
 ## Operational commands
 
@@ -130,4 +112,4 @@ docker stop mcp-media-stack
 - Default server bind is `0.0.0.0:8000`.
 - Trakt tools support passing `username` directly or using `TRAKT_USERNAME` as fallback.
 - `get_trakt_public_watched_movies` defaults to the last 30 days.
-- TMDb tools return condensed movie metadata (title, release date, ratings, genre IDs, overview).
+- Trakt tools return condensed movie metadata including title, release date, ratings, genres, and certification.

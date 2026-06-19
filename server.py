@@ -12,31 +12,6 @@ mcp = FastMCP(name="Media Stack MCP")
 TRAKT_API_BASE = "https://api.trakt.tv"
 
 
-class TLS12HttpAdapter(HTTPAdapter):
-    """HTTPS adapter that negotiates only TLS 1.2."""
-
-    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
-        ssl_context = ssl.create_default_context()
-        ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
-        ssl_context.maximum_version = ssl.TLSVersion.TLSv1_2
-        pool_kwargs["ssl_context"] = ssl_context
-        self.poolmanager = PoolManager(
-            num_pools=connections,
-            maxsize=maxsize,
-            block=block,
-            **pool_kwargs,
-        )
-
-
-def _tmdb_get(url: str, params: dict, headers: dict, timeout: int = 20) -> requests.Response:
-    try:
-        return requests.get(url, params=params, headers=headers, timeout=timeout)
-    except requests.RequestException:
-        with requests.Session() as session:
-            session.mount("https://", TLS12HttpAdapter())
-            return session.get(url, params=params, headers=headers, timeout=timeout)
-
-
 @mcp.tool
 def check_trakt_profile_privacy(username: str | None = None) -> dict:
     """
@@ -239,47 +214,50 @@ def get_trakt_public_liked_movies(username: str | None = None, threshold_user_ra
     return liked_movies
 
 @mcp.tool
-def get_tmdb_latest_high_rated_movies(limit: int = 50, num_days: int = 30, threshold_rating: int = 7, threshold_vote_count: int = 500, language: str = "en-US") -> list[dict]:
+def get_trakt_latest_high_rated_movies(days: int = 30, threshold_rating: float = 7, limit: int = 50) -> list[dict]:
     """
-    Get recently released high-rated movies from TMDb.
+    Get recently released high-rated movies from Trakt.SSSS
     """
 
-    tmdb_bearer_token = os.getenv("TMDB_BEARER_TOKEN")
-    if not tmdb_bearer_token:
-        return [{"error": "TMDB_BEARER_TOKEN is not set"}]
-    
-    endpoint = "https://api.themoviedb.org/3/discover/movie"
-    
+    trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
+    if not trakt_client_id:
+        return [{"error": "TRAKT_CLIENT_ID is not set"}]
+    if days <= 0:
+        return [{"error": "days must be greater than 0"}]
+
+    now_utc = datetime.now(timezone.utc)
+    start_at = (now_utc - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    endpoint = f"{TRAKT_API_BASE}/calendars/all/movies/{start_at}/{days}"
     params = {
-        "sort_by": "popularity.desc",
-        "vote_average.gte": threshold_rating,
-        "vote_count.gte": threshold_vote_count,
-        "language": language,
-        "page": 1,
-        "primary_release_date.gte": (datetime.now() - timedelta(days=num_days)).strftime("%Y-%m-%d"),
-        "primary_release_date.lte": datetime.now().strftime("%Y-%m-%d")
+        "extended": "full",
+        "ratings": f"{int(threshold_rating * 10)}-100",  # Filter movies with rating greater than or equal to threshold
     }
-
     headers = {
-        "accept": "application/json",
-        "authorization": f"Bearer {tmdb_bearer_token}"
+        "Content-Type": "application/json",
+        "trakt-api-version": "2",
+        "trakt-api-key": trakt_client_id,
     }
 
     try:
-        response = _tmdb_get(endpoint, params=params, headers=headers, timeout=20)
+        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
         response.raise_for_status()
     except requests.RequestException as exc:
-        return [{"error": f"Failed to fetch latest movies from TMDb: {exc}", "message": "Retry if not retried recently"}]
+        return [{"error": f"Failed to fetch latest movies from Trakt: {exc}"}]
 
-    movies_data = response.json().get("results", [])
+    movies_data = response.json()
     latest_movies: list[dict] = []
-    for movie in movies_data[:limit]:
+    movies_data = movies_data[:limit]  # Limit the number of movies to process
+    for item in movies_data:
+        movie = item.get("movie", {})
         latest_movies.append(
             {
                 "title": movie.get("title"),
-                "release_date": movie.get("release_date"),
-                "average_rating": movie.get("vote_average"),
-                "genre_ids": movie.get("genre_ids", []),
+                "release_date": movie.get("released"),
+                "average_rating": round(movie.get("rating"), 2) if isinstance(movie.get("rating"), (int, float)) else None,
+                "genre": movie.get("genres", []),
+                "certification": movie.get("certification"),
+                "language": movie.get("language"),
                 "overview": movie.get("overview")
             }
         )
@@ -287,42 +265,43 @@ def get_tmdb_latest_high_rated_movies(limit: int = 50, num_days: int = 30, thres
     return latest_movies
 
 @mcp.tool
-def get_tmdb_popular_movies(limit: int = 50, language: str = "en-US") -> list[dict]:
+def get_trakt_popular_movies(limit: int = 50) -> list[dict]:
     """
-    Get popular movies from TMDb.
+    Get popular movies from Trakt.
     """
 
-    tmdb_bearer_token = os.getenv("TMDB_BEARER_TOKEN")
-    if not tmdb_bearer_token:
-        return [{"error": "TMDB_BEARER_TOKEN is not set"}]
-    
-    endpoint = "https://api.themoviedb.org/3/movie/popular"
-    
+    trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
+    if not trakt_client_id:
+        return [{"error": "TRAKT_CLIENT_ID is not set"}]
+
+    endpoint = f"{TRAKT_API_BASE}/movies/popular"
     params = {
-        "language": language,
-        "page": 1
+        "extended": "full"
     }
-
     headers = {
-        "accept": "application/json",
-        "authorization": f"Bearer {tmdb_bearer_token}"
+        "Content-Type": "application/json",
+        "trakt-api-version": "2",
+        "trakt-api-key": trakt_client_id,
     }
 
     try:
-        response = _tmdb_get(endpoint, params=params, headers=headers, timeout=20)
+        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
         response.raise_for_status()
     except requests.RequestException as exc:
-        return [{"error": f"Failed to fetch popular movies from TMDb: {exc}", "message": "Retry if not retried recently"}]
+        return [{"error": f"Failed to fetch popular movies from Trakt: {exc}"}]
 
-    movies_data = response.json().get("results", [])
+    movies_data = response.json()
     popular_movies: list[dict] = []
-    for movie in movies_data[:limit]:
+    movies_data = movies_data[:limit]  # Limit the number of movies to process
+    for movie in movies_data:
         popular_movies.append(
             {
                 "title": movie.get("title"),
-                "release_date": movie.get("release_date"),
-                "average_rating": movie.get("vote_average"),
-                "genre_ids": movie.get("genre_ids", []),
+                "release_date": movie.get("released"),
+                "average_rating": round(movie.get("rating"), 2) if isinstance(movie.get("rating"), (int, float)) else None,
+                "genre": movie.get("genres", []),
+                "certification": movie.get("certification"),
+                "language": movie.get("language"),
                 "overview": movie.get("overview")
             }
         )
