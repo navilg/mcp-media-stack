@@ -16,10 +16,35 @@ FastMCP server that exposes Trakt tools to fetch movies watched in the last N da
 1. Create or log in to your Trakt account.
 2. Create an API app in Trakt settings.
 3. Copy your Client ID.
-4. Complete OAuth and obtain an Access Token.
+4. Complete OAuth and obtain a Refresh Token.
+5. Copy your Client Secret from the Trakt app settings.
 
-OAuth reference:
-https://trakt.docs.apiary.io/#reference/authentication-oauth
+
+### Generate refresh token (device flow)
+
+1. Generate a device code and user code. Copy device code and User code from json response.
+
+~~~bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"client_id": "CLIENT ID"}' \
+  https://api.trakt.tv/oauth/device/code
+~~~
+
+2. Open this URL in your browser and authenticate using the returned `user_code`:
+
+https://trakt.tv/activate/<USER CODE>
+
+3. Exchange the returned `device_code` for initial tokens (includes refresh token):
+
+~~~bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"client_id": "CLIENT ID", "client_secret": "CLIENT SECRET", "code": "DEVICE CODE"}' \
+  https://api.trakt.tv/oauth/device/token
+~~~
+
+4. Save `refresh_token` from the response as `TRAKT_REFRESH_TOKEN`.
 
 ## Environment variables
 
@@ -27,9 +52,14 @@ Required for all Trakt tools:
 
 - `TRAKT_CLIENT_ID`
 
-Required for the watched movies tool (if not passed as function argument):
+Required to auto-generate an access token in `get_trakt_watched_movies`:
 
-- `TRAKT_ACCESS_TOKEN`
+- `TRAKT_REFRESH_TOKEN`
+- `TRAKT_CLIENT_SECRET`
+
+Optional:
+
+- Pass `access_token` directly to `get_trakt_watched_movies` to bypass refresh-token flow. Access toke expires in 7 days. You will have to regenerate access token if access_token is passed directly.
 
 ## Build container image
 
@@ -48,7 +78,8 @@ The server listens on port `8000` by default.
 ~~~bash
 docker run --rm -p 8000:8000 \
   -e TRAKT_CLIENT_ID=your_trakt_client_id \
-  -e TRAKT_ACCESS_TOKEN=your_trakt_access_token \
+  -e TRAKT_CLIENT_SECRET=your_trakt_client_secret \
+  -e TRAKT_REFRESH_TOKEN=your_trakt_refresh_token \
   --name mcp-media-stack \
   mcp-media-stack:latest
 ~~~
@@ -61,7 +92,8 @@ Create a `.env` file:
 
 ~~~env
 TRAKT_CLIENT_ID=your_trakt_client_id
-TRAKT_ACCESS_TOKEN=your_trakt_access_token
+TRAKT_CLIENT_SECRET=your_trakt_client_secret
+TRAKT_REFRESH_TOKEN=your_trakt_refresh_token
 ~~~
 
 Then run:
@@ -115,4 +147,5 @@ python server.py --host 0.0.0.0 --port 8000 --transport streamable-http
 
 - Default watched window is 30 days (`days=30`).
 - The server currently reads the authenticated user's Trakt watch history via `/users/me/history/movies`.
-- A valid OAuth access token is required unless you pass `access_token` directly to the tool.
+- By default, the server refreshes access using `TRAKT_REFRESH_TOKEN`, `TRAKT_CLIENT_ID`, and `TRAKT_CLIENT_SECRET`.
+- You can still pass `access_token` directly when calling the tool.
