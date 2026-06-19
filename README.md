@@ -19,10 +19,51 @@ The server currently exposes these MCP tools:
 
 ## Environment variables
 
-Set the following as needed:
+| Variable | Required | Description |
+|---|---|---|
+| `TRAKT_CLIENT_ID` | Yes | Trakt API client ID |
+| `TRAKT_USERNAME` | No | Optional default username if `username` tool argument is omitted |
+| `MCP_BEARER_TOKEN` | No | Bearer token for MCP server authentication (see [Authentication](#authentication) below) |
 
-- `TRAKT_CLIENT_ID` (required)
-- `TRAKT_USERNAME` (optional default username if `username` tool argument is omitted)
+## Authentication
+
+When `MCP_BEARER_TOKEN` is set, the MCP server requires Bearer token authentication for all **HTTP-based transports** (`streamable-http`, `sse`).
+
+- **STDIO transport** is unaffected — MCP authentication applies only to HTTP transports.
+- **If `MCP_BEARER_TOKEN` is omitted or unset**, authentication is disabled and the server runs openly.
+
+### Clients must send the Authorization header
+
+```http
+Authorization: Bearer <MCP_BEARER_TOKEN>
+```
+
+### Example: FastMCP client with Bearer token
+
+```python
+from fastmcp import Client
+
+async with Client(
+    "http://your-server:8000/mcp",
+    auth="your_mcp_bearer_token",
+) as client:
+    await client.ping()
+```
+
+### Example: StreamableHttpTransport with Bearer token
+
+```python
+from fastmcp import Client
+from fastmcp.client.transports import StreamableHttpTransport
+
+transport = StreamableHttpTransport(
+    "http://your-server:8000/mcp",
+    auth="your_mcp_bearer_token",
+)
+
+async with Client(transport) as client:
+    await client.ping()
+```
 
 ## Quick start (Docker)
 
@@ -32,12 +73,13 @@ Build image:
 docker build -t mcp-media-stack:latest .
 ```
 
-Run container (port 8000):
+Run container (port 8000) with Bearer token:
 
 ```bash
 docker run --rm -p 8000:8000 \
   -e TRAKT_CLIENT_ID=your_trakt_client_id \
   -e TRAKT_USERNAME=your_trakt_username \
+  -e MCP_BEARER_TOKEN=your_mcp_bearer_token \
   --name mcp-media-stack \
   mcp-media-stack:latest
 ```
@@ -49,6 +91,7 @@ Create `.env`:
 ```env
 TRAKT_CLIENT_ID=your_trakt_client_id
 TRAKT_USERNAME=your_trakt_username
+MCP_BEARER_TOKEN=your_mcp_bearer_token
 ```
 
 Run with env file:
@@ -64,6 +107,13 @@ docker run --rm -p 8000:8000 \
 
 ```bash
 python -m pip install -r requirements.txt
+MCP_BEARER_TOKEN=your_mcp_bearer_token python server.py --host 0.0.0.0 --port 8000 --transport streamable-http
+```
+
+Or set via environment variable:
+
+```bash
+export MCP_BEARER_TOKEN=your_mcp_bearer_token
 python server.py --host 0.0.0.0 --port 8000 --transport streamable-http
 ```
 
@@ -113,3 +163,4 @@ docker stop mcp-media-stack
 - Trakt tools support passing `username` directly or using `TRAKT_USERNAME` as fallback.
 - `get_trakt_public_watched_movies` defaults to the last 30 days.
 - Trakt tools return condensed movie metadata including title, release date, ratings, genres, and certification.
+- Bearer token authentication uses FastMCP's `StaticTokenVerifier` — suitable for service accounts, CI/CD, and pre-shared tokens. For production, consider migrating to JWT or OAuth verification.
