@@ -76,6 +76,35 @@ python -m pip install -r requirements.txt
 python server.py --host 0.0.0.0 --port 8000 --transport streamable-http
 ```
 
+## Test script (using test.env)
+
+A helper script is included to run tool-level checks directly against the Python functions in `server.py`.
+
+- Create your test env file:
+
+```bash
+cp test.env.example test.env
+```
+
+- Fill in credentials and test inputs in `test.env`.
+
+- Run all tool tests:
+
+```bash
+python test_server.py --env-file test.env
+```
+
+- Run a single tool test:
+
+```bash
+python test_server.py --env-file test.env --tool get_tmdb_popular_movies
+```
+
+Useful flags:
+
+- `--tool all|check_trakt_profile_privacy|get_trakt_public_watched_movies|get_trakt_public_liked_movies|get_tmdb_latest_high_rated_movies|get_tmdb_popular_movies`
+- `--preview 5` to control how many list items are printed
+
 ## Operational commands
 
 View logs:
