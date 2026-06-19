@@ -144,14 +144,65 @@ def get_trakt_public_watched_movies(username: str, days: int = 30) -> list[dict]
                 "watched_at": item.get("watched_at"),
                 "title": movie.get("title"),
                 "year": movie.get("year"),
-                "rating_by_user": item.get("rating"),
-                "average_rating": movie.get("rating"),
+                "rating": movie.get("rating"),
                 "genre": movie.get("genres", []),
             }
         )
 
     return watched_movies
-    
+
+@mcp.tool
+def get_trakt_public_liked_movies(username: str, threshold_user_rating: float, days: int = 30) -> list[dict]:
+    """
+    Get liked movies from a public Trakt profile.
+    """
+
+    trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
+    if not trakt_client_id:
+        return [{"error": "TRAKT_CLIENT_ID is not set"}]
+    if not username.strip():
+        return [{"error": "username must not be empty"}]
+
+    endpoint = f"{TRAKT_API_BASE}/users/{username}/ratings/movies"
+
+    now_utc = datetime.now(timezone.utc)
+    start_at = (now_utc - timedelta(days=days)).isoformat().replace("+00:00", "Z")
+    end_at = now_utc.isoformat().replace("+00:00", "Z")
+    params = {
+        "limit": "1000",
+        "extended": "full",
+        "rating": f"{threshold_user_rating}-10",  # Filter ratings greater than or equal to threshold
+        "started_at": start_at,
+        "ended_at": end_at
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "trakt-api-version": "2",
+        "trakt-api-key": trakt_client_id,
+    }
+
+    try:
+        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return [{"error": f"Failed to fetch public liked movies from Trakt: {exc}"}]
+
+    liked_items = response.json()
+    liked_movies: list[dict] = []
+    for item in liked_items:
+        movie = item.get("movie", {})
+        liked_movies.append(
+            {
+                "liked_at": item.get("rated_at"),
+                "title": movie.get("title"),
+                "year": movie.get("year"),
+                "rating": movie.get("rating"),
+                "genre": movie.get("genres", []),
+            }
+        )
+
+    return liked_movies
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Media Stack MCP server.")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host address to bind the server to")
