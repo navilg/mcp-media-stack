@@ -1,10 +1,6 @@
-from email import header
-
 from fastmcp import FastMCP
 import os
 import requests
-
-from rich.table import header
 import argparse
 from datetime import datetime, timedelta, timezone
 
