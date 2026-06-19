@@ -1,22 +1,70 @@
 from fastmcp import FastMCP
+import os
 import requests
 import argparse
+from datetime import datetime, timedelta, timezone
 
 mcp = FastMCP(name="Media Stack MCP")
 
-# TRAKT_API_BASE = "https://api.trakt.tv"
+TRAKT_API_BASE = "https://api.trakt.tv"
+
 
 @mcp.tool
-def get_ip_address() -> str:
+def get_trakt_watched_movies(days: int = 30, access_token: str | None = None) -> list[dict]:
     """
-    Get IP address of server
+    Get movies watched in the last N days from a Trakt profile.
     """
 
-    response = requests.get("https://ipinfo.io/json")
-    if response.status_code == 200:
-        return response.json().get("ip")
-    else:
-        return "Unable to fetch IP address"
+    trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
+    if not trakt_client_id:
+        return [{"error": "TRAKT_CLIENT_ID is not set"}]
+    if days <= 0:
+        return [{"error": "days must be greater than 0"}]
+
+    token = access_token or os.getenv("TRAKT_ACCESS_TOKEN")
+    if not token:
+        return [{"error": "No access token provided. Pass access_token or set TRAKT_ACCESS_TOKEN."}]
+
+    now_utc = datetime.now(timezone.utc)
+    start_at = (now_utc - timedelta(days=days)).isoformat().replace("+00:00", "Z")
+    end_at = now_utc.isoformat().replace("+00:00", "Z")
+
+    endpoint = f"{TRAKT_API_BASE}/users/me/history/movies"
+    params = {
+        "start_at": start_at,
+        "end_at": end_at,
+        "limit": "1000",
+        "extended": "full",
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "trakt-api-version": "2",
+        "trakt-api-key": trakt_client_id,
+        "Authorization": f"Bearer {token}",
+    }
+
+    try:
+        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return [{"error": f"Failed to fetch private watched movies from Trakt: {exc}"}]
+
+    history_items = response.json()
+    watched_movies: list[dict] = []
+    for item in history_items:
+        movie = item.get("movie", {})
+        watched_movies.append(
+            {
+                "watched_at": item.get("watched_at"),
+                "title": movie.get("title"),
+                "year": movie.get("year"),
+                "rating_by_user": item.get("rating"),
+                "average_rating": movie.get("rating"),
+                "genre": movie.get("genres", []),
+            }
+        )
+
+    return watched_movies
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Media Stack MCP server.")
