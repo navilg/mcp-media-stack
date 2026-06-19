@@ -1,4 +1,5 @@
 from fastmcp import FastMCP
+from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
 import os
 import ssl
 import requests
@@ -7,7 +8,32 @@ from datetime import datetime, timedelta, timezone
 from requests.adapters import HTTPAdapter
 from urllib3.poolmanager import PoolManager
 
-mcp = FastMCP(name="Media Stack MCP")
+# ── Bearer Token Authentication ────────────────────────────────────────────
+#
+# When MCP_BEARER_TOKEN is set, HTTP transports (streamable-http, sse) require
+# a valid Bearer token in the Authorization header. Clients must send:
+#
+#   Authorization: Bearer <MCP_BEARER_TOKEN>
+#
+# STDIO transport does not support MCP authentication, so this setting is
+# automatically ignored in stdio mode. To disable auth, simply omit or unset
+# the MCP_BEARER_TOKEN environment variable.
+#
+bearer_token = os.environ.get("MCP_BEARER_TOKEN")
+if bearer_token:
+    mcp = FastMCP(
+        name="Media Stack MCP",
+        auth=StaticTokenVerifier(
+            tokens={
+                bearer_token: {
+                    "client_id": "mcp-client",
+                    "scopes": ["*"],
+                }
+            },
+        ),
+    )
+else:
+    mcp = FastMCP(name="Media Stack MCP")
 
 TRAKT_API_BASE = "https://api.trakt.tv"
 
@@ -103,6 +129,7 @@ def check_trakt_profile_privacy(username: str | None = None) -> dict:
         "reason": f"Unexpected status code: {history_response.status_code}",
     }
 
+
 @mcp.tool
 def get_trakt_public_watched_movies(username: str | None = None, days: int = 30) -> list[dict]:
     """
@@ -160,6 +187,7 @@ def get_trakt_public_watched_movies(username: str | None = None, days: int = 30)
 
     return watched_movies
 
+
 @mcp.tool
 def get_trakt_public_liked_movies(username: str | None = None, threshold_user_rating: int = 7, limit: int = 50) -> list[dict]:
     """
@@ -213,10 +241,11 @@ def get_trakt_public_liked_movies(username: str | None = None, threshold_user_ra
 
     return liked_movies
 
+
 @mcp.tool
 def get_trakt_latest_high_rated_movies(days: int = 30, threshold_rating: float = 7, limit: int = 50) -> list[dict]:
     """
-    Get recently released high-rated movies from Trakt.SSSS
+    Get recently released high-rated movies from Trakt.
     """
 
     trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
@@ -264,6 +293,7 @@ def get_trakt_latest_high_rated_movies(days: int = 30, threshold_rating: float =
 
     return latest_movies
 
+
 @mcp.tool
 def get_trakt_popular_movies(limit: int = 50) -> list[dict]:
     """
@@ -307,6 +337,7 @@ def get_trakt_popular_movies(limit: int = 50) -> list[dict]:
         )
 
     return popular_movies
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Media Stack MCP server.")
