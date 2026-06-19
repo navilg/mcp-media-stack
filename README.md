@@ -1,117 +1,107 @@
 # MCP Media Stack
 
-FastMCP server that exposes Trakt tools for public profile checks and public watched-movie history.
+FastMCP server that exposes movie-related tools backed by Trakt and TMDb APIs.
 
-## What this server provides
+## Tools
 
-- `check_trakt_profile_privacy(username)`
-- `get_trakt_public_watched_movies(username, days=30)`
+The server currently exposes these MCP tools:
+
+- `check_trakt_profile_privacy(username=None)`
+- `get_trakt_public_watched_movies(username=None, days=30)`
+- `get_trakt_public_liked_movies(username=None, threshold_user_rating=7, limit=50)`
+- `get_tmdb_latest_high_rated_movies(api_key=None, limit=50, num_days=30, threshold_rating=7, threshold_vote_count=500, language="en-US")`
+- `get_tmdb_popular_movies(api_key=None, limit=50, language="en-US")`
 
 ## Prerequisites
 
-- Docker installed on your machine
-- A Trakt application (to get a Client ID)
-
-## Trakt setup
-
-1. Create or log in to your Trakt account.
-2. Create an API app in Trakt settings.
-3. Copy your Client ID.
+- Python 3.11+ (for local run) or Docker (for container run)
+- Trakt API client ID for Trakt tools
+- TMDb bearer token for TMDb tools
 
 ## Environment variables
 
-Required for all Trakt tools:
+Set the following as needed by the tools you call.
 
-- `TRAKT_CLIENT_ID`
+### Trakt
 
-## Build container image
+- `TRAKT_CLIENT_ID` (required for Trakt tools)
+- `TRAKT_USERNAME` (optional default username if `username` tool argument is omitted)
 
-From this project directory, run:
+### TMDb
 
-~~~bash
+- `TMDB_BEARER_TOKEN` (required by the HTTP authorization header used in TMDb requests)
+- `TMDB_API_KEY` (currently validated by the TMDb tool functions before request execution)
+
+## Quick start (Docker)
+
+Build image:
+
+```bash
 docker build -t mcp-media-stack:latest .
-~~~
+```
 
-## Run container
+Run container (port 8000):
 
-The server listens on port `8000` by default.
-
-### Run with Trakt access
-
-~~~bash
+```bash
 docker run --rm -p 8000:8000 \
   -e TRAKT_CLIENT_ID=your_trakt_client_id \
+  -e TRAKT_USERNAME=your_trakt_username \
+  -e TMDB_BEARER_TOKEN=your_tmdb_bearer_token \
+  -e TMDB_API_KEY=your_tmdb_api_key \
   --name mcp-media-stack \
   mcp-media-stack:latest
-~~~
+```
 
-Use this with tools `check_trakt_profile_privacy` and `get_trakt_public_watched_movies`.
+## Quick start (.env file)
 
-## Run with env file (recommended)
+Create `.env`:
 
-Create a `.env` file:
-
-~~~env
+```env
 TRAKT_CLIENT_ID=your_trakt_client_id
-~~~
+TRAKT_USERNAME=your_trakt_username
+TMDB_BEARER_TOKEN=your_tmdb_bearer_token
+TMDB_API_KEY=your_tmdb_api_key
+```
 
-Then run:
+Run with env file:
 
-~~~bash
+```bash
 docker run --rm -p 8000:8000 \
   --env-file .env \
   --name mcp-media-stack \
   mcp-media-stack:latest
-~~~
+```
 
-## Verify container is running
+## Local run (without Docker)
 
-- Check logs:
-
-~~~bash
-docker logs -f mcp-media-stack
-~~~
-
-- Check running containers:
-
-~~~bash
-docker ps
-~~~
-
-## Stop container
-
-~~~bash
-docker stop mcp-media-stack
-~~~
-
-## Local run without Docker (optional)
-
-~~~bash
-pip install -r requirements.txt
+```bash
+python -m pip install -r requirements.txt
 python server.py --host 0.0.0.0 --port 8000 --transport streamable-http
-~~~
+```
 
-## Tool response
+## Operational commands
 
-`get_trakt_public_watched_movies` returns a list of watched movies with these fields:
+View logs:
 
-- `watched_at`
-- `title`
-- `year`
-- `rating_by_user`
-- `average_rating`
-- `genre`
+```bash
+docker logs -f mcp-media-stack
+```
 
-`check_trakt_profile_privacy` returns profile status fields such as:
+List running containers:
 
-- `username`
-- `exists`
-- `profile_visibility`
-- `is_private`
-- `message` (included when profile is private)
+```bash
+docker ps
+```
+
+Stop container:
+
+```bash
+docker stop mcp-media-stack
+```
 
 ## Notes
 
-- Default watched window is 30 days (`days=30`).
-- Public watched history is read via `/users/{username}/history/movies`.
-- If a profile is private, `check_trakt_profile_privacy` returns a message to make profile/history public in Trakt privacy settings.
+- Default server bind is `0.0.0.0:8000`.
+- Trakt tools support passing `username` directly or using `TRAKT_USERNAME` as fallback.
+- `get_trakt_public_watched_movies` defaults to the last 30 days.
+- TMDb tools return condensed movie metadata (title, release date, ratings, genre IDs, overview).
