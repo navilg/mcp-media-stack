@@ -47,27 +47,115 @@ def get_access_token() -> str | None:
 
     return new_access_token
 
+
 @mcp.tool
-def get_trakt_watched_movies(days: int = 30, access_token: str | None = None) -> list[dict]:
+def check_trakt_profile_privacy(username: str) -> dict:
     """
-    Get movies watched in the last N days from a Trakt profile.
+    Check whether a Trakt user's profile is public or private.
+    """
+
+    trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
+    if not trakt_client_id:
+        return {"error": "TRAKT_CLIENT_ID is not set"}
+    if not username.strip():
+        return {"error": "username must not be empty"}
+
+    headers = {
+        "Content-Type": "application/json",
+        "trakt-api-version": "2",
+        "trakt-api-key": trakt_client_id,
+    }
+
+    profile_url = f"{TRAKT_API_BASE}/users/{username}"
+    try:
+        profile_response = requests.get(
+            profile_url,
+            params={"extended": "full"},
+            headers=headers,
+            timeout=20,
+        )
+    except requests.RequestException as exc:
+        return {"error": f"Failed to check Trakt profile: {exc}"}
+
+    if profile_response.status_code == 404:
+        return {
+            "username": username,
+            "exists": False,
+            "profile_visibility": "unknown",
+            "reason": "User not found",
+        }
+
+    if profile_response.ok:
+        data = profile_response.json()
+        is_private = data.get("private")
+        if isinstance(is_private, bool):
+            result = {
+                "username": username,
+                "exists": True,
+                "profile_visibility": "private" if is_private else "public",
+                "is_private": is_private,
+            }
+            if is_private:
+                result["message"] = "Your Trakt profile is private. Make your profile/history public in Trakt privacy settings to allow public access."
+            return result
+
+    # Fallback when private flag is unavailable: infer from public history endpoint.
+    history_url = f"{TRAKT_API_BASE}/users/{username}/history/movies"
+    try:
+        history_response = requests.get(
+            history_url,
+            params={"limit": "1"},
+            headers=headers,
+            timeout=20,
+        )
+    except requests.RequestException as exc:
+        return {"error": f"Failed to infer profile visibility from history endpoint: {exc}"}
+
+    if history_response.status_code == 200:
+        return {
+            "username": username,
+            "exists": True,
+            "profile_visibility": "public",
+            "is_private": False,
+            "inference": "Public history endpoint is accessible.",
+        }
+
+    if history_response.status_code in (401, 403):
+        return {
+            "username": username,
+            "exists": True,
+            "profile_visibility": "private",
+            "is_private": True,
+            "inference": "Public history endpoint is restricted.",
+            "message": "Your Trakt profile is private. Make your profile/history public in Trakt privacy settings to allow public access.",
+        }
+
+    return {
+        "username": username,
+        "exists": True,
+        "profile_visibility": "unknown",
+        "reason": f"Unexpected status code: {history_response.status_code}",
+    }
+
+@mcp.tool
+def get_trakt_public_watched_movies(username: str, days: int = 30) -> list[dict]:
+    """
+    Get movies watched in the last N days from a public Trakt profile.
     """
 
     trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
     if not trakt_client_id:
         return [{"error": "TRAKT_CLIENT_ID is not set"}]
+    if not username.strip():
+        return [{"error": "username must not be empty"}]
     if days <= 0:
         return [{"error": "days must be greater than 0"}]
-
-    token = access_token or get_access_token()
-    if not token:
-        return [{"error": "No access token provided/generated. Pass access_token or set TRAKT_REFRESH_TOKEN."}]
 
     now_utc = datetime.now(timezone.utc)
     start_at = (now_utc - timedelta(days=days)).isoformat().replace("+00:00", "Z")
     end_at = now_utc.isoformat().replace("+00:00", "Z")
 
-    endpoint = f"{TRAKT_API_BASE}/users/me/history/movies"
+    endpoint = f"{TRAKT_API_BASE}/users/{username}/history/movies"
     params = {
         "start_at": start_at,
         "end_at": end_at,
@@ -78,14 +166,13 @@ def get_trakt_watched_movies(days: int = 30, access_token: str | None = None) ->
         "Content-Type": "application/json",
         "trakt-api-version": "2",
         "trakt-api-key": trakt_client_id,
-        "Authorization": f"Bearer {token}",
     }
 
     try:
         response = requests.get(endpoint, params=params, headers=headers, timeout=20)
         response.raise_for_status()
     except requests.RequestException as exc:
-        return [{"error": f"Failed to fetch private watched movies from Trakt: {exc}"}]
+        return [{"error": f"Failed to fetch public watched movies from Trakt: {exc}"}]
 
     history_items = response.json()
     watched_movies: list[dict] = []
