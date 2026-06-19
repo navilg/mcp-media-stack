@@ -241,7 +241,7 @@ def get_trakt_public_liked_movies(username: str | None = None, threshold_user_ra
 @mcp.tool
 def get_tmdb_latest_high_rated_movies(limit: int = 50, num_days: int = 30, threshold_rating: int = 7, threshold_vote_count: int = 500, language: str = "en-US") -> list[dict]:
     """
-    Get the latest high-rated movies from TMDb.
+    Get recently released high-rated movies from TMDb.
     """
 
     tmdb_bearer_token = os.getenv("TMDB_BEARER_TOKEN")
