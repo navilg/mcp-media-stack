@@ -154,7 +154,7 @@ def get_trakt_public_watched_movies(username: str, days: int = 30) -> list[dict]
     return watched_movies
 
 @mcp.tool
-def get_trakt_public_liked_movies(username: str, threshold_user_rating: int = 7) -> list[dict]:
+def get_trakt_public_liked_movies(username: str, threshold_user_rating: int = 7, limit: int = 50) -> list[dict]:
     """
     Get liked movies from a public Trakt profile.
     """
@@ -170,7 +170,7 @@ def get_trakt_public_liked_movies(username: str, threshold_user_rating: int = 7)
     endpoint = f"{TRAKT_API_BASE}/users/{username}/ratings/movies/{rating}"
 
     params = {
-        "limit": "500",
+        "limit": str(limit),
         "extended": "full"
     }
     headers = {
