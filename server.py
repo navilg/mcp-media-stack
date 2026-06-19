@@ -198,7 +198,8 @@ def get_trakt_public_liked_movies(username: str, threshold_user_rating: int = 7,
                 "genre": movie.get("genres", []),
                 "certification": movie.get("certification"),
                 "language": movie.get("language"),
-                "overview": movie.get("overview")            }
+                "overview": movie.get("overview")
+            }
         )
 
     return liked_movies
