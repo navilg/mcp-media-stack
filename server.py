@@ -269,7 +269,7 @@ def get_tmdb_latest_high_rated_movies(limit: int = 50, num_days: int = 30, thres
         response = _tmdb_get(endpoint, params=params, headers=headers, timeout=20)
         response.raise_for_status()
     except requests.RequestException as exc:
-        return [{"error": f"Failed to fetch latest movies from TMDb: {exc}"}]
+        return [{"error": f"Failed to fetch latest movies from TMDb: {exc}", "message": "Retry if not retried recently"}]
 
     movies_data = response.json().get("results", [])
     latest_movies: list[dict] = []
@@ -312,7 +312,7 @@ def get_tmdb_popular_movies(limit: int = 50, language: str = "en-US") -> list[di
         response = _tmdb_get(endpoint, params=params, headers=headers, timeout=20)
         response.raise_for_status()
     except requests.RequestException as exc:
-        return [{"error": f"Failed to fetch popular movies from TMDb: {exc}"}]
+        return [{"error": f"Failed to fetch popular movies from TMDb: {exc}", "message": "Retry if not retried recently"}]
 
     movies_data = response.json().get("results", [])
     popular_movies: list[dict] = []
