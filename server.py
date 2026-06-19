@@ -13,7 +13,7 @@ TRAKT_API_BASE = "https://api.trakt.tv"
 
 
 class TLS12HttpAdapter(HTTPAdapter):
-    """HTTPS adapter that negotiates TLS up to 1.2."""
+    """HTTPS adapter that negotiates only TLS 1.2."""
 
     def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
         ssl_context = ssl.create_default_context()
@@ -29,9 +29,12 @@ class TLS12HttpAdapter(HTTPAdapter):
 
 
 def _tmdb_get(url: str, params: dict, headers: dict, timeout: int = 20) -> requests.Response:
-    with requests.Session() as session:
-        session.mount("https://", TLS12HttpAdapter())
-        return session.get(url, params=params, headers=headers, timeout=timeout)
+    try:
+        return requests.get(url, params=params, headers=headers, timeout=timeout)
+    except requests.RequestException:
+        with requests.Session() as session:
+            session.mount("https://", TLS12HttpAdapter())
+            return session.get(url, params=params, headers=headers, timeout=timeout)
 
 
 @mcp.tool
