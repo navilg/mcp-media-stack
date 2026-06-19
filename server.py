@@ -146,13 +146,14 @@ def get_trakt_public_watched_movies(username: str, days: int = 30) -> list[dict]
                 "year": movie.get("year"),
                 "rating": movie.get("rating"),
                 "genre": movie.get("genres", []),
+                "certification": item.get("certification")
             }
         )
 
     return watched_movies
 
 @mcp.tool
-def get_trakt_public_liked_movies(username: str, threshold_user_rating: float = 7) -> list[dict]:
+def get_trakt_public_liked_movies(username: str, threshold_user_rating: int = 7) -> list[dict]:
     """
     Get liked movies from a public Trakt profile.
     """
@@ -162,13 +163,14 @@ def get_trakt_public_liked_movies(username: str, threshold_user_rating: float = 
         return [{"error": "TRAKT_CLIENT_ID is not set"}]
     if not username.strip():
         return [{"error": "username must not be empty"}]
+    
+    rating = ",".join(str(r) for r in range(threshold_user_rating, 11))  # Filter ratings greater than or equal to threshold
 
-    endpoint = f"{TRAKT_API_BASE}/users/{username}/ratings/movies"
+    endpoint = f"{TRAKT_API_BASE}/users/{username}/ratings/movies/{rating}"
 
     params = {
         "limit": "500",
-        "extended": "full",
-        "rating": ",".join(str(r) for r in range(int(threshold_user_rating), 11)),  # Filter ratings greater than or equal to threshold
+        "extended": "full"
     }
     headers = {
         "Content-Type": "application/json",
@@ -193,6 +195,7 @@ def get_trakt_public_liked_movies(username: str, threshold_user_rating: float = 
                 "average_rating": movie.get("rating"),
                 "user_rating": item.get("rating"),
                 "genre": movie.get("genres", []),
+                "certification": item.get("certification")
             }
         )
 
