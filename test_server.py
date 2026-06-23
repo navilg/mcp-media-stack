@@ -24,10 +24,9 @@ def _parse_tsv(tsv_str: str) -> list[dict]:
 def test_check_trakt_profile_privacy():
     print(f"Testing Trakt profile privacy for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
     test_username = os.getenv("TEST_TRAKT_USERNAME")
-    result_tsv = server.check_trakt_profile_privacy(test_username)
-    records = _parse_tsv(result_tsv)
-    assert len(records) > 0
-    assert records[0]["profile_visibility"] == "public"
+    result = server.check_trakt_profile_privacy(test_username)
+    assert isinstance(result, str)
+    assert "visibility is public" in result
     print(f"User '{test_username}' has a public profile")
 
 
