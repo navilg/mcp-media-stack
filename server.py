@@ -17,7 +17,7 @@ def _to_tsv(records: list[dict]) -> str:
     First line is column headers, subsequent lines are values.
     """
     if not records:
-        return ""
+        return "Empty list"
 
     headers = list(records[0].keys())
 
