@@ -77,8 +77,11 @@ def check_trakt_profile_privacy(username: str | None = None) -> str:
             details = ""
             if is_private:
                 details = "Make profile/history public in Trakt privacy settings to allow public access."
+                profile_visibility = "private"
+            else:
+                profile_visibility = "public"
 
-            return f"Trakt user {username}'s profile visibility is {"private" if is_private else "public"}. {details}"
+            return f"Trakt user {username}'s profile visibility is {profile_visibility}. {details}"
 
     # Fallback when private flag is unavailable: infer from public history endpoint.
     history_url = f"{TRAKT_API_BASE}/users/{username}/history/movies"
