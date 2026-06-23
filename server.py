@@ -204,6 +204,7 @@ def get_trakt_public_liked_movies(username: str | None = None, threshold_user_ra
             {
                 "title": movie.get("title"),
                 "year": movie.get("year"),
+                "runtime": str(movie.get("runtime")) + " min" if movie.get("runtime") else None,
                 "average_rating": movie.get("rating"),
                 "user_rating": item.get("rating"),
                 "genre": movie.get("genres", []),
@@ -215,6 +216,59 @@ def get_trakt_public_liked_movies(username: str | None = None, threshold_user_ra
 
     return _to_tsv(liked_movies)
 
+@mcp.tool
+def get_trakt_public_disliked_movies(username: str | None = None, threshold_user_rating: int = 6, limit: int = 50) -> str:
+    """
+    Get disliked movies from a public Trakt profile.
+    """
+
+    username = username or os.getenv("TRAKT_USERNAME")
+
+    trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
+    if not trakt_client_id:
+        return "Error: TRAKT_CLIENT_ID is not set"
+    if not username or not username.strip():
+        return "Error: username must not be empty"
+
+    rating = ",".join(str(r) for r in range(1, threshold_user_rating))  # Filter ratings less than threshold
+
+    endpoint = f"{TRAKT_API_BASE}/users/{username}/ratings/movies/{rating}"
+
+    params = {
+        "limit": str(limit),
+        "extended": "full",
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "trakt-api-version": "2",
+        "trakt-api-key": trakt_client_id,
+    }
+
+    try:
+        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to fetch public disliked movies from Trakt: {exc}"
+
+    disliked_items = response.json()
+    disliked_movies: list[dict] = []
+    for item in disliked_items:
+        movie = item.get("movie", {})
+        disliked_movies.append(
+            {
+                "title": movie.get("title"),
+                "year": movie.get("year"),
+                "runtime": str(movie.get("runtime")) + " min" if movie.get("runtime") else None,
+                "average_rating": movie.get("rating"),
+                "user_rating": item.get("rating"),
+                "genre": movie.get("genres", []),
+                "certification": movie.get("certification"),
+                "language": movie.get("language"),
+                "overview": movie.get("overview"),
+            }
+        )
+
+    return _to_tsv(disliked_movies)
 
 @mcp.tool
 def get_trakt_latest_high_rated_movies(days: int = 30, threshold_rating: float = 7, limit: int = 50) -> str:
@@ -257,6 +311,7 @@ def get_trakt_latest_high_rated_movies(days: int = 30, threshold_rating: float =
             {
                 "title": movie.get("title"),
                 "release_date": movie.get("released"),
+                "runtime": str(movie.get("runtime")) + " min" if movie.get("runtime") else None,
                 "average_rating": round(movie.get("rating"), 2) if isinstance(movie.get("rating"), (int, float)) else None,
                 "genre": movie.get("genres", []),
                 "certification": movie.get("certification"),
@@ -302,6 +357,7 @@ def get_trakt_popular_movies(limit: int = 50) -> str:
             {
                 "title": movie.get("title"),
                 "release_date": movie.get("released"),
+                "runtime": str(movie.get("runtime")) + " min" if movie.get("runtime") else None,
                 "average_rating": round(movie.get("rating"), 2) if isinstance(movie.get("rating"), (int, float)) else None,
                 "genre": movie.get("genres", []),
                 "certification": movie.get("certification"),

@@ -22,7 +22,7 @@ def _parse_tsv(tsv_str: str) -> list[dict]:
 
 
 def test_check_trakt_profile_privacy():
-    print(f"Testing Trakt profile privacy for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
+    print(f"\nTesting Trakt profile privacy for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
     test_username = os.getenv("TEST_TRAKT_USERNAME")
     result = server.check_trakt_profile_privacy(test_username)
     assert isinstance(result, str)
@@ -31,7 +31,7 @@ def test_check_trakt_profile_privacy():
 
 
 def test_get_trakt_public_watched_movies():
-    print(f"Testing Trakt public watched movies for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
+    print(f"\nTesting Trakt public watched movies for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
     test_username = os.getenv("TEST_TRAKT_USERNAME")
     result_tsv = server.get_trakt_public_watched_movies(test_username)
     records = _parse_tsv(result_tsv)
@@ -41,7 +41,7 @@ def test_get_trakt_public_watched_movies():
 
 
 def test_get_trakt_public_liked_movies():
-    print(f"Testing Trakt public liked movies for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
+    print(f"\nTesting Trakt public liked movies for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
     test_username = os.getenv("TEST_TRAKT_USERNAME")
     result_tsv = server.get_trakt_public_liked_movies(test_username)
     records = _parse_tsv(result_tsv)
@@ -50,9 +50,19 @@ def test_get_trakt_public_liked_movies():
     print("Sample movie:", records[0])
     assert all(int(record["user_rating"]) >= 7 for record in records)
 
+def test_get_trakt_public_disliked_movies():
+    print(f"\nTesting Trakt public disliked movies for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
+    test_username = os.getenv("TEST_TRAKT_USERNAME")
+    result_tsv = server.get_trakt_public_disliked_movies(test_username)
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    print(f"Retrieved {len(records)} disliked movies for user '{test_username}'")
+    print("Sample movie:", records[0])
+    assert all(int(record["user_rating"]) <= 5 for record in records)
+
 
 def test_get_trakt_latest_high_rated_movies():
-    print(f"Testing Trakt latest high-rated movies")
+    print(f"\nTesting Trakt latest high-rated movies")
     result_tsv = server.get_trakt_latest_high_rated_movies()
     records = _parse_tsv(result_tsv)
     assert len(records) > 0
@@ -62,7 +72,7 @@ def test_get_trakt_latest_high_rated_movies():
 
 
 def test_get_trakt_popular_movies():
-    print(f"Testing Trakt popular movies")
+    print(f"\nTesting Trakt popular movies")
     result_tsv = server.get_trakt_popular_movies()
     records = _parse_tsv(result_tsv)
     assert len(records) > 0
@@ -75,5 +85,6 @@ if __name__ == "__main__":
     test_check_trakt_profile_privacy()
     test_get_trakt_public_watched_movies()
     test_get_trakt_public_liked_movies()
+    test_get_trakt_public_disliked_movies()
     test_get_trakt_latest_high_rated_movies()
     test_get_trakt_popular_movies()
