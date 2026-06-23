@@ -67,13 +67,7 @@ def check_trakt_profile_privacy(username: str | None = None) -> str:
         return f"Error: Failed to check Trakt profile: {exc}"
 
     if profile_response.status_code == 404:
-        return _to_tsv([{
-            "username": username,
-            "exists": False,
-            "profile_visibility": "unknown",
-            "is_private": "",
-            "details": "User not found",
-        }])
+        return f"Trakt user {username} not found"
 
     if profile_response.ok:
         data = profile_response.json()
@@ -81,14 +75,9 @@ def check_trakt_profile_privacy(username: str | None = None) -> str:
         if isinstance(is_private, bool):
             details = ""
             if is_private:
-                details = "Your Trakt profile is private. Make your profile/history public in Trakt privacy settings to allow public access."
-            return _to_tsv([{
-                "username": username,
-                "exists": True,
-                "profile_visibility": "private" if is_private else "public",
-                "is_private": str(is_private),
-                "details": details,
-            }])
+                details = "Make profile/history public in Trakt privacy settings to allow public access."
+
+            return f"Trakt user {username}'s profile visibility is {"private" if is_private else "public"}. {details}"
 
     # Fallback when private flag is unavailable: infer from public history endpoint.
     history_url = f"{TRAKT_API_BASE}/users/{username}/history/movies"
@@ -103,30 +92,12 @@ def check_trakt_profile_privacy(username: str | None = None) -> str:
         return f"Error: Failed to infer profile visibility from history endpoint: {exc}"
 
     if history_response.status_code == 200:
-        return _to_tsv([{
-            "username": username,
-            "exists": True,
-            "profile_visibility": "public",
-            "is_private": "False",
-            "details": "Public history endpoint is accessible.",
-        }])
+        return f"Trakt user {username}'s profile visibility is public."
 
     if history_response.status_code in (401, 403):
-        return _to_tsv([{
-            "username": username,
-            "exists": True,
-            "profile_visibility": "private",
-            "is_private": "True",
-            "details": "Public history endpoint is restricted. Your Trakt profile is private. Make your profile/history public in Trakt privacy settings to allow public access.",
-        }])
+        return f"Trakt user {username}'s profile visibility is private. Make profile/history public in Trakt privacy settings to allow public access."
 
-    return _to_tsv([{
-        "username": username,
-        "exists": True,
-        "profile_visibility": "unknown",
-        "is_private": "",
-        "details": f"Unexpected status code: {history_response.status_code}",
-    }])
+    return  f"Error: Unexpected error. Status code: {history_response.status_code}"
 
 
 @mcp.tool
