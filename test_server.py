@@ -2,47 +2,74 @@ from dotenv import load_dotenv
 import os
 import server
 
+
+def _parse_tsv(tsv_str: str) -> list[dict]:
+    """Parse a TSV string into a list of dicts."""
+    if not tsv_str or not tsv_str.strip():
+        return []
+    lines = tsv_str.strip().split("\n")
+    headers = lines[0].split("\t")
+    records = []
+    for line in lines[1:]:
+        if not line.strip():
+            continue
+        values = line.split("\t")
+        record = {}
+        for i, header in enumerate(headers):
+            record[header] = values[i] if i < len(values) else ""
+        records.append(record)
+    return records
+
+
 def test_check_trakt_profile_privacy():
     print(f"Testing Trakt profile privacy for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
     test_username = os.getenv("TEST_TRAKT_USERNAME")
-    assert server.check_trakt_profile_privacy(test_username)["profile_visibility"] == "public"
+    result_tsv = server.check_trakt_profile_privacy(test_username)
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    assert records[0]["profile_visibility"] == "public"
     print(f"User '{test_username}' has a public profile")
+
 
 def test_get_trakt_public_watched_movies():
     print(f"Testing Trakt public watched movies for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
     test_username = os.getenv("TEST_TRAKT_USERNAME")
-    movies = server.get_trakt_public_watched_movies(test_username)
-    assert isinstance(movies, list)
-    assert len(movies) > 0
-    print(f"Retrieved {len(movies)} watched movies for user '{test_username}'")
-    print("Sample movie:", movies[0])
+    result_tsv = server.get_trakt_public_watched_movies(test_username)
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    print(f"Retrieved {len(records)} watched movies for user '{test_username}'")
+    print("Sample movie:", records[0])
+
 
 def test_get_trakt_public_liked_movies():
     print(f"Testing Trakt public liked movies for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
     test_username = os.getenv("TEST_TRAKT_USERNAME")
-    movies = server.get_trakt_public_liked_movies(test_username)
-    assert isinstance(movies, list)
-    assert len(movies) > 0
-    print(f"Retrieved {len(movies)} liked movies for user '{test_username}'")
-    print("Sample movie:", movies[0])
-    assert all(movie['user_rating'] >= 7 for movie in movies)
+    result_tsv = server.get_trakt_public_liked_movies(test_username)
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    print(f"Retrieved {len(records)} liked movies for user '{test_username}'")
+    print("Sample movie:", records[0])
+    assert all(int(record["user_rating"]) >= 7 for record in records)
+
 
 def test_get_trakt_latest_high_rated_movies():
     print(f"Testing Trakt latest high-rated movies")
-    movies = server.get_trakt_latest_high_rated_movies()
-    assert isinstance(movies, list)
-    assert len(movies) > 0
-    print(f"Retrieved {len(movies)} latest high-rated movies from Trakt")
-    print("Sample movie:", movies[0])
-    assert all(movie['average_rating'] >= 7 for movie in movies)
+    result_tsv = server.get_trakt_latest_high_rated_movies()
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    print(f"Retrieved {len(records)} latest high-rated movies from Trakt")
+    print("Sample movie:", records[0])
+    assert all(float(record["average_rating"]) >= 7 for record in records)
+
 
 def test_get_trakt_popular_movies():
     print(f"Testing Trakt popular movies")
-    movies = server.get_trakt_popular_movies()
-    assert isinstance(movies, list)
-    assert len(movies) > 0
-    print(f"Retrieved {len(movies)} popular movies from Trakt")
-    print("Sample movie:", movies[0])
+    result_tsv = server.get_trakt_popular_movies()
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    print(f"Retrieved {len(records)} popular movies from Trakt")
+    print("Sample movie:", records[0])
+
 
 if __name__ == "__main__":
     load_dotenv("test.env")
