@@ -26,7 +26,8 @@ def _to_tsv(records: list[dict]) -> str:
             return ""
         if isinstance(v, list):
             return ",".join(str(x) for x in v)
-        return str(v)
+        # Escape tabs and newlines to prevent broken TSV rows
+        return str(v).replace("\t", "\\t").replace("\n", "\\n")
 
     lines = ["\t".join(headers)]
     for rec in records:
