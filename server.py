@@ -369,6 +369,58 @@ def get_trakt_popular_movies(limit: int = 50) -> str:
     return _to_tsv(popular_movies)
 
 
+@mcp.tool
+def get_radarr_movies() -> str:
+    """
+    Get the list of movies in Radarr along with details such as whether each movie
+    is monitored, whether a movie file already exists, quality profile, file size,
+    genres, and more.
+    """
+
+    radarr_url = os.getenv("RADARR_URL")
+    radarr_api_key = os.getenv("RADARR_API_KEY")
+
+    if not radarr_url:
+        return "Error: RADARR_URL is not set"
+    if not radarr_api_key:
+        return "Error: RADARR_API_KEY is not set"
+
+    radarr_url = radarr_url.rstrip("/")
+    endpoint = f"{radarr_url}/api/v3/movie"
+    headers = {"X-Api-Key": radarr_api_key}
+
+    try:
+        response = requests.get(endpoint, headers=headers, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to fetch movies from Radarr: {exc}"
+
+    movies_data = response.json()
+    movies: list[dict] = []
+    for movie in movies_data:
+        movie_file = movie.get("movieFile", {})
+        movies.append(
+            {
+                "title": movie.get("title"),
+                "year": movie.get("year"),
+                "monitored": movie.get("monitored"),
+                "status": movie.get("status"),
+                "has_file": movie.get("hasFile"),
+                "file_path": movie_file.get("path") if movie.get("hasFile") else None,
+                "file_size_mb": round(movie_file.get("size", 0) / (1024 * 1024), 1) if movie.get("hasFile") else None,
+                "quality": movie_file.get("quality", {}).get("quality", {}).get("name") if movie.get("hasFile") else None,
+                "genres": movie.get("genres", []),
+                "runtime": str(movie.get("runtime")) + " min" if movie.get("runtime") else None,
+                "certification": movie.get("certification"),
+                "tmdb_id": movie.get("tmdbId"),
+                "imdb_id": movie.get("imdbId"),
+            }
+        )
+
+    movies.sort(key=lambda m: m["title"] or "")
+    return _to_tsv(movies)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Media Stack MCP server.")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host address to bind the server to")

@@ -80,6 +80,19 @@ def test_get_trakt_popular_movies():
     print("Sample movie:", records[0])
 
 
+def test_get_radarr_movies():
+    print("\nTesting Radarr movies list")
+    result_tsv = server.get_radarr_movies()
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0, "Expected at least one movie in Radarr"
+    print(f"Retrieved {len(records)} movies from Radarr")
+    print("Sample movie:", records[0])
+    assert "title" in records[0]
+    assert "monitored" in records[0]
+    assert "has_file" in records[0]
+
+
 if __name__ == "__main__":
     load_dotenv("test.env")
     test_check_trakt_profile_privacy()
@@ -88,3 +101,4 @@ if __name__ == "__main__":
     test_get_trakt_public_disliked_movies()
     test_get_trakt_latest_high_rated_movies()
     test_get_trakt_popular_movies()
+    test_get_radarr_movies()
