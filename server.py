@@ -645,6 +645,63 @@ def delete_radarr_movie(movie_query: str, delete_files: bool = False) -> str:
     return f"Deleted Radarr movie '{movie_title}' (delete_files={delete_files})"
 
 
+@mcp.tool
+def get_radarr_current_downloads() -> str:
+    """
+    Get the movies that are currently downloading in Radarr with progress and ETA.
+    """
+
+    radarr_config = _get_radarr_config()
+    if isinstance(radarr_config, str):
+        return radarr_config
+
+    radarr_url, radarr_api_key = radarr_config
+    endpoint = f"{radarr_url}/api/v3/queue"
+    headers = {"X-Api-Key": radarr_api_key}
+    params = {
+        "page": 1,
+        "pageSize": 1000,
+        "sortKey": "title",
+        "sortDirection": "ascending",
+    }
+
+    try:
+        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to fetch current downloads from Radarr: {exc}"
+
+    queue_data = response.json()
+    queue_items = queue_data.get("records", queue_data) if isinstance(queue_data, dict) else queue_data
+
+    downloads: list[dict] = []
+    for item in queue_items:
+        if str(item.get("status", "")).lower() != "downloading":
+            continue
+
+        size = item.get("size")
+        size_left = item.get("sizeLeft")
+        progress = None
+        if isinstance(size, (int, float)) and size > 0 and isinstance(size_left, (int, float)):
+            progress = round(((size - size_left) / size) * 100, 1)
+
+        downloads.append(
+            {
+                "title": item.get("title"),
+                "status": item.get("status"),
+                "protocol": item.get("protocol"),
+                "progress_percent": progress,
+                "size_left_bytes": size_left,
+                "time_left": item.get("timeleft"),
+                "estimated_completion_time": item.get("estimatedCompletionTime"),
+                "download_id": item.get("downloadId"),
+            }
+        )
+
+    downloads.sort(key=lambda download: download["title"] or "")
+    return _to_tsv(downloads)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Media Stack MCP server.")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host address to bind the server to")

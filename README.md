@@ -16,6 +16,7 @@ The server currently exposes these MCP tools:
 - `get_radarr_root_folders()`
 - `add_radarr_movie(movie_query, root_folder_path, quality_profile_id)`
 - `delete_radarr_movie(movie_query, delete_files=False)`
+- `get_radarr_current_downloads()`
 
 ## Prerequisites
 
@@ -122,3 +123,4 @@ docker stop mcp-media-stack
 - Trakt tools return condensed movie metadata including title, release date, ratings, genres, and certification.
 - `add_radarr_movie` looks up the movie by query string, then adds it with monitor set to movie only, minimum availability set to released, and search enabled.
 - `delete_radarr_movie` looks up the movie by query string before deleting it; set `delete_files=True` to remove the file from disk as well.
+- `get_radarr_current_downloads` reports queue items whose status is `downloading`, including progress percent and time-left fields when Radarr provides them.

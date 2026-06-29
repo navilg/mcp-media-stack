@@ -204,6 +204,55 @@ def test_delete_radarr_movie():
     assert captured_params == {"deleteFiles": "true"}
 
 
+def test_get_radarr_current_downloads():
+    print("\nTesting Radarr current downloads")
+    queue_payload = {
+        "records": [
+            {
+                "title": "Dune",
+                "status": "downloading",
+                "protocol": "usenet",
+                "size": 1000,
+                "sizeLeft": 250,
+                "timeleft": "00:15:00",
+                "estimatedCompletionTime": "2026-06-29T18:15:00Z",
+                "downloadId": "abc123",
+            },
+            {
+                "title": "Not Downloading",
+                "status": "completed",
+                "protocol": "usenet",
+                "size": 1000,
+                "sizeLeft": 0,
+                "timeleft": "00:00:00",
+                "estimatedCompletionTime": "2026-06-29T18:00:00Z",
+                "downloadId": "zzz999",
+            },
+        ]
+    }
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        assert url.endswith("/api/v3/queue")
+        assert params == {
+            "page": 1,
+            "pageSize": 1000,
+            "sortKey": "title",
+            "sortDirection": "ascending",
+        }
+        return _MockResponse(queue_payload)
+
+    with patch.object(server.requests, "get", side_effect=fake_get):
+        result_tsv = server.get_radarr_current_downloads()
+
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+    records = _parse_tsv(result_tsv)
+    assert len(records) == 1
+    assert records[0]["title"] == "Dune"
+    assert records[0]["progress_percent"] == "75.0"
+    assert records[0]["time_left"] == "00:15:00"
+    print("Retrieved current download:", records[0])
+
+
 if __name__ == "__main__":
     load_dotenv("test.env")
     test_check_trakt_profile_privacy()
@@ -217,3 +266,4 @@ if __name__ == "__main__":
     test_get_radarr_root_folders()
     test_add_radarr_movie()
     test_delete_radarr_movie()
+    test_get_radarr_current_downloads()
