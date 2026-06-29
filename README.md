@@ -11,6 +11,11 @@ The server currently exposes these MCP tools:
 - `get_trakt_public_liked_movies(username=None, threshold_user_rating=7, limit=50)`
 - `get_trakt_latest_high_rated_movies(days=30, threshold_rating=7, limit=50)`
 - `get_trakt_popular_movies(limit=50)`
+- `get_radarr_movies()`
+- `get_radarr_quality_profiles()`
+- `get_radarr_root_folders()`
+- `add_radarr_movie(movie_query, root_folder_path, quality_profile_id)`
+- `delete_radarr_movie(movie_query, delete_files=False)`
 
 ## Prerequisites
 
@@ -23,6 +28,8 @@ Set the following as needed:
 
 - `TRAKT_CLIENT_ID` (required)
 - `TRAKT_USERNAME` (optional default username if `username` tool argument is omitted)
+- `RADARR_URL` (required for Radarr tools)
+- `RADARR_API_KEY` (required for Radarr tools)
 
 ## Quick start (Docker)
 
@@ -113,3 +120,5 @@ docker stop mcp-media-stack
 - Trakt tools support passing `username` directly or using `TRAKT_USERNAME` as fallback.
 - `get_trakt_public_watched_movies` defaults to the last 30 days.
 - Trakt tools return condensed movie metadata including title, release date, ratings, genres, and certification.
+- `add_radarr_movie` looks up the movie by query string, then adds it with monitor set to movie only, minimum availability set to released, and search enabled.
+- `delete_radarr_movie` looks up the movie by query string before deleting it; set `delete_files=True` to remove the file from disk as well.
