@@ -709,13 +709,13 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host address to bind the server to")
     parser.add_argument("--port", type=int, default=8000, help="Port to bind the server to")
     parser.add_argument("--transport", type=str, default="streamable-http", help="Transport protocol to use (default: streamable-http)")
-    parser.add_argument("--disable-tags", type=str, default="deprecated",
-                        help="Comma-separated list of tool tags to disable (e.g. 'deprecated,experimental'). Default: 'deprecated'")
+    parser.add_argument("--disable-toolsets", type=str, default="deprecated",
+                        help="Comma-separated list of toolset tags to disable (e.g. 'deprecated,experimental'). Default: 'deprecated'")
     args = parser.parse_args()
 
-    # Disable tools by tags specified in --disable-tags
-    if args.disable_tags:
-        tags_to_disable = {tag.strip() for tag in args.disable_tags.split(",") if tag.strip()}
+    # Disable tools by their toolset tags specified in --disable-toolsets
+    if args.disable_toolsets:
+        tags_to_disable = {tag.strip() for tag in args.disable_toolsets.split(",") if tag.strip()}
         if tags_to_disable:
             mcp.disable(tags=tags_to_disable)
 
