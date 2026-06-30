@@ -48,7 +48,7 @@ def _to_tsv(records: list[dict]) -> str:
     return "\n".join(lines)
 
 
-@mcp.tool
+@mcp.tool(tags={"trakt"})
 def check_trakt_profile_privacy(username: str | None = None) -> str:
     """
     Check whether a Trakt user's profile is public or private.
@@ -116,7 +116,7 @@ def check_trakt_profile_privacy(username: str | None = None) -> str:
     return  f"Error: Unexpected error. Status code: {history_response.status_code}"
 
 
-@mcp.tool
+@mcp.tool(tags={"trakt"})
 def get_trakt_public_watched_movies(username: str | None = None, days: int = 30) -> str:
     """
     Get movies watched in the last N days from a public Trakt profile.
@@ -174,7 +174,7 @@ def get_trakt_public_watched_movies(username: str | None = None, days: int = 30)
     return _to_tsv(watched_movies)
 
 
-@mcp.tool
+@mcp.tool(tags={"trakt"})
 def get_trakt_public_liked_movies(username: str | None = None, threshold_user_rating: int = 7, limit: int = 50) -> str:
     """
     Get liked movies from a public Trakt profile.
@@ -228,7 +228,8 @@ def get_trakt_public_liked_movies(username: str | None = None, threshold_user_ra
 
     return _to_tsv(liked_movies)
 
-@mcp.tool
+
+@mcp.tool(tags={"trakt"})
 def get_trakt_public_disliked_movies(username: str | None = None, threshold_user_rating: int = 6, limit: int = 50) -> str:
     """
     Get disliked movies from a public Trakt profile.
@@ -282,7 +283,8 @@ def get_trakt_public_disliked_movies(username: str | None = None, threshold_user
 
     return _to_tsv(disliked_movies)
 
-@mcp.tool
+
+@mcp.tool(tags={"trakt"})
 def get_trakt_latest_high_rated_movies(days: int = 30, threshold_rating: float = 7, limit: int = 50) -> str:
     """
     Get recently released high-rated movies from Trakt.
@@ -335,7 +337,7 @@ def get_trakt_latest_high_rated_movies(days: int = 30, threshold_rating: float =
     return _to_tsv(latest_movies)
 
 
-@mcp.tool
+@mcp.tool(tags={"trakt"})
 def get_trakt_popular_movies(limit: int = 50) -> str:
     """
     Get popular movies from Trakt.
@@ -381,7 +383,7 @@ def get_trakt_popular_movies(limit: int = 50) -> str:
     return _to_tsv(popular_movies)
 
 
-@mcp.tool
+@mcp.tool(tags={"radarr"})
 def get_radarr_movies() -> str:
     """
     Get the list of movies in Radarr along with details such as whether each movie
@@ -429,7 +431,7 @@ def get_radarr_movies() -> str:
     return _to_tsv(movies)
 
 
-@mcp.tool
+@mcp.tool(tags={"radarr"})
 def get_radarr_quality_profiles() -> str:
     """
     Get the list of Radarr quality profiles.
@@ -466,7 +468,7 @@ def get_radarr_quality_profiles() -> str:
     return _to_tsv(quality_profiles)
 
 
-@mcp.tool
+@mcp.tool(tags={"radarr"})
 def get_radarr_root_folders() -> str:
     """
     Get the list of Radarr root folders.
@@ -503,7 +505,7 @@ def get_radarr_root_folders() -> str:
     return _to_tsv(root_folders)
 
 
-@mcp.tool
+@mcp.tool(tags={"radarr"})
 def add_radarr_movie(movie_query: str, root_folder_path: str, quality_profile_id: int) -> str:
     """
     Add a movie to Radarr using the provided root folder and quality profile.
@@ -577,7 +579,7 @@ def add_radarr_movie(movie_query: str, root_folder_path: str, quality_profile_id
     return f"Added Radarr movie '{added_title}' at '{added_path}' with quality profile {quality_profile_id}"
 
 
-@mcp.tool
+@mcp.tool(tags={"radarr"})
 def delete_radarr_movie(movie_query: str, delete_files: bool = False) -> str:
     """
     Delete a movie from Radarr.
@@ -645,7 +647,7 @@ def delete_radarr_movie(movie_query: str, delete_files: bool = False) -> str:
     return f"Deleted Radarr movie '{movie_title}' (delete_files={delete_files})"
 
 
-@mcp.tool
+@mcp.tool(tags={"radarr"})
 def get_radarr_current_downloads() -> str:
     """
     Get the movies that are currently downloading in Radarr with progress and ETA.
@@ -707,6 +709,14 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host address to bind the server to")
     parser.add_argument("--port", type=int, default=8000, help="Port to bind the server to")
     parser.add_argument("--transport", type=str, default="streamable-http", help="Transport protocol to use (default: streamable-http)")
+    parser.add_argument("--disable-tags", type=str, default="deprecated",
+                        help="Comma-separated list of tool tags to disable (e.g. 'deprecated,experimental'). Default: 'deprecated'")
     args = parser.parse_args()
+
+    # Disable tools by tags specified in --disable-tags
+    if args.disable_tags:
+        tags_to_disable = {tag.strip() for tag in args.disable_tags.split(",") if tag.strip()}
+        if tags_to_disable:
+            mcp.disable(tags=tags_to_disable)
 
     mcp.run(transport=args.transport, host=args.host, port=args.port)
