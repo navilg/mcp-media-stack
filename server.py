@@ -51,6 +51,38 @@ def _to_tsv(records: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _parse_toolsets(value: str) -> str:
+    """Validate comma-separated toolset names. Must be valid toolsets.
+
+    Returns the original value unchanged on success.
+    Raises argparse.ArgumentTypeError on invalid input.
+    """
+    if not value:
+        return value
+    for item in value.split(","):
+        t = item.strip()
+        if t and t not in VALID_TOOLSETS:
+            raise argparse.ArgumentTypeError(
+                f"invalid toolset: '{t}'. Valid options: {', '.join(sorted(VALID_TOOLSETS))}"
+            )
+    return value
+
+
+def _compute_tags_to_disable(disable_toolsets_arg: str) -> set[str]:
+    """Compute the set of tags to disable for mcp.disable().
+
+    Always includes 'deprecated'. Parses the comma-separated disable-toolsets
+    argument and adds any valid toolset tags found. Returns a new set each call.
+    """
+    tags_to_disable = {"deprecated"}
+    if disable_toolsets_arg:
+        for tag in disable_toolsets_arg.split(","):
+            t = tag.strip()
+            if t:
+                tags_to_disable.add(t)
+    return tags_to_disable
+
+
 @mcp.tool(tags={"trakt"})
 def check_trakt_profile_privacy(username: str | None = None) -> str:
     """
@@ -713,18 +745,6 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=8000, help="Port to bind the server to")
     parser.add_argument("--transport", type=str, default="streamable-http", help="Transport protocol to use (default: streamable-http)")
 
-    def _parse_toolsets(value: str) -> str:
-        """Validate comma-separated toolset names. Must be valid toolsets."""
-        if not value:
-            return value
-        for item in value.split(","):
-            t = item.strip()
-            if t and t not in VALID_TOOLSETS:
-                raise argparse.ArgumentTypeError(
-                    f"invalid toolset: '{t}'. Valid options: {', '.join(sorted(VALID_TOOLSETS))}"
-                )
-        return value
-
     parser.add_argument(
         "--disable-toolsets",
         type=_parse_toolsets,
@@ -733,15 +753,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Always disable the "deprecated" tag
-    tags_to_disable = {"deprecated"}
-
-    # Add toolsets specified by the user
-    if args.disable_toolsets:
-        for tag in args.disable_toolsets.split(","):
-            t = tag.strip()
-            if t:
-                tags_to_disable.add(t)
+    # Always disable the "deprecated" tag; add any user-specified toolsets
+    tags_to_disable = _compute_tags_to_disable(args.disable_toolsets)
 
     mcp.disable(tags=tags_to_disable)
 
