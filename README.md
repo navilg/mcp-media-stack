@@ -9,6 +9,7 @@ The server currently exposes these MCP tools:
 - `check_trakt_profile_privacy(username=None)`
 - `get_trakt_public_watched_movies(username=None, days=30)`
 - `get_trakt_public_liked_movies(username=None, threshold_user_rating=7, limit=50)`
+- `get_trakt_public_disliked_movies(username=None, threshold_user_rating=6, limit=50)`
 - `get_trakt_latest_high_rated_movies(days=30, threshold_rating=7, limit=50)`
 - `get_trakt_popular_movies(limit=50)`
 - `get_radarr_movies()`
@@ -75,7 +76,43 @@ python -m pip install -r requirements.txt
 python server.py --host 0.0.0.0 --port 8000 --transport streamable-http
 ```
 
-## Test script (using test.env)
+## Disabling tool groups
+
+You can disable entire groups of related tools at startup using the `--disable-toolsets` flag. This is useful when you only want to expose Trakt tools or Radarr tools, not both.
+
+Available toolset names:
+
+| Toolset   | Tools affected                                                           |
+|-----------|--------------------------------------------------------------------------|
+| `trakt`   | All 6 Trakt tools (profile, watched, liked, disliked, latest, popular)   |
+| `radarr`  | All 6 Radarr tools (list, quality, root folders, add, delete, downloads) |
+
+Examples:
+
+```bash
+# Default: all tools enabled (only 'deprecated' tag is disabled)
+python server.py
+
+# Disable all Trakt tools (only Radarr tools are available)
+python server.py --disable-toolsets "trakt"
+
+# Disable all Radarr tools (only Trakt tools are available)
+python server.py --disable-toolsets "radarr"
+
+# Disable both (no tools available — mostly useful for testing)
+python server.py --disable-toolsets "radarr,trakt"
+```
+
+Passing an invalid toolset name produces an error:
+
+```bash
+python server.py --disable-toolsets "invalid_name"
+# error: argument --disable-toolsets: invalid toolset: 'invalid_name'. Valid options: radarr, trakt
+```
+
+> **Note:** The `deprecated` tag is always disabled internally and reserved for future use.
+
+## Test script
 
 A test script is included to validate tool functionality against the Python functions in `server.py`.
 
@@ -87,9 +124,13 @@ cp test.env.example test.env
 
 - Fill in credentials and test inputs in `test.env`.
 
-- Run tests:
+- Run tests (requires `pytest`):
 
 ```bash
+# Run all tests
+python -m pytest test_server.py -v
+
+# Or run directly
 python test_server.py
 ```
 
