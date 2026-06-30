@@ -11,6 +11,9 @@ mcp = FastMCP(name="Media Stack MCP")
 
 TRAKT_API_BASE = "https://api.trakt.tv"
 
+# Valid toolset names
+VALID_TOOLSETS = {"radarr", "trakt"}
+
 
 def _get_radarr_config() -> tuple[str, str] | str:
     radarr_url = os.getenv("RADARR_URL")
@@ -709,14 +712,37 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host address to bind the server to")
     parser.add_argument("--port", type=int, default=8000, help="Port to bind the server to")
     parser.add_argument("--transport", type=str, default="streamable-http", help="Transport protocol to use (default: streamable-http)")
-    parser.add_argument("--disable-toolsets", type=str, default="deprecated",
-                        help="Comma-separated list of toolset tags to disable (e.g. 'deprecated,experimental'). Default: 'deprecated'")
+
+    def _parse_toolsets(value: str) -> str:
+        """Validate comma-separated toolset names. Must be valid toolsets."""
+        if not value:
+            return value
+        for item in value.split(","):
+            t = item.strip()
+            if t and t not in VALID_TOOLSETS:
+                raise argparse.ArgumentTypeError(
+                    f"invalid toolset: '{t}'. Valid options: {', '.join(sorted(VALID_TOOLSETS))}"
+                )
+        return value
+
+    parser.add_argument(
+        "--disable-toolsets",
+        type=_parse_toolsets,
+        default="",
+        help="Comma-separated list of toolsets to disable (e.g. 'radarr,trakt')",
+    )
     args = parser.parse_args()
 
-    # Disable tools by their toolset tags specified in --disable-toolsets
+    # Always disable the "deprecated" tag
+    tags_to_disable = {"deprecated"}
+
+    # Add toolsets specified by the user
     if args.disable_toolsets:
-        tags_to_disable = {tag.strip() for tag in args.disable_toolsets.split(",") if tag.strip()}
-        if tags_to_disable:
-            mcp.disable(tags=tags_to_disable)
+        for tag in args.disable_toolsets.split(","):
+            t = tag.strip()
+            if t:
+                tags_to_disable.add(t)
+
+    mcp.disable(tags=tags_to_disable)
 
     mcp.run(transport=args.transport, host=args.host, port=args.port)
