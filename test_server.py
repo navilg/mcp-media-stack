@@ -1,3 +1,6 @@
+import argparse
+import subprocess
+import sys
 from dotenv import load_dotenv
 import os
 from unittest.mock import patch
@@ -36,6 +39,119 @@ class _MockResponse:
     def raise_for_status(self):
         if self.status_code >= 400:
             raise requests.HTTPError(f"HTTP {self.status_code}")
+
+
+# ---------------------------------------------------------------------------
+# Toolset / tag parsing tests (no network required)
+# ---------------------------------------------------------------------------
+
+
+def test_valid_toolsets():
+    """Valid toolset names pass validation."""
+    assert server._parse_toolsets("") == ""
+    assert server._parse_toolsets("trakt") == "trakt"
+    assert server._parse_toolsets("radarr") == "radarr"
+    assert server._parse_toolsets("trakt,radarr") == "trakt,radarr"
+    assert server._parse_toolsets("radarr,trakt") == "radarr,trakt"
+
+
+def test_parse_toolsets_handles_whitespace():
+    """Whitespace around toolset names is tolerated."""
+    assert server._parse_toolsets("  trakt  ") == "  trakt  "
+    assert server._parse_toolsets(" trakt , radarr ") == " trakt , radarr "
+
+
+def test_parse_toolsets_invalid():
+    """Unknown toolset names raise ArgumentTypeError."""
+    with pytest.raises(argparse.ArgumentTypeError, match="invalid toolset: 'invalid_toolset'"):
+        server._parse_toolsets("invalid_toolset")
+
+    with pytest.raises(argparse.ArgumentTypeError, match="invalid toolset: 'bogus'"):
+        server._parse_toolsets("trakt,bogus")
+
+
+def test_compute_tags_to_disable_default():
+    """Default (empty string) results in only 'deprecated'."""
+    tags = server._compute_tags_to_disable("")
+    assert tags == {"deprecated"}
+
+
+def test_compute_tags_to_disable_with_trakt():
+    """Disabling 'trakt' adds it to the deprecated tag."""
+    tags = server._compute_tags_to_disable("trakt")
+    assert tags == {"deprecated", "trakt"}
+
+
+def test_compute_tags_to_disable_with_radarr():
+    """Disabling 'radarr' adds it to the deprecated tag."""
+    tags = server._compute_tags_to_disable("radarr")
+    assert tags == {"deprecated", "radarr"}
+
+
+def test_compute_tags_to_disable_both():
+    """Disabling both toolsets includes all three tags."""
+    tags = server._compute_tags_to_disable("trakt,radarr")
+    assert tags == {"deprecated", "trakt", "radarr"}
+
+
+def test_compute_tags_to_disable_handles_whitespace():
+    """Whitespace in the CSV argument is stripped."""
+    tags = server._compute_tags_to_disable("  trakt , radarr  ")
+    assert tags == {"deprecated", "trakt", "radarr"}
+
+
+def test_compute_tags_to_disable_returns_fresh_set():
+    """Each call returns a new set, no aliasing."""
+    tags1 = server._compute_tags_to_disable("trakt")
+    tags2 = server._compute_tags_to_disable("radarr")
+    assert tags1 != tags2
+
+
+# ---------------------------------------------------------------------------
+# CLI integration tests (subprocess)
+# ---------------------------------------------------------------------------
+
+
+def test_server_help_mentions_disable_toolsets():
+    """The --help output should reference --disable-toolsets."""
+    result = subprocess.run(
+        [sys.executable, "server.py", "--help"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0
+    assert "--disable-toolsets" in result.stdout
+
+
+def test_server_help_lists_radarr_and_trakt():
+    """The --help output should mention radarr and trakt as valid options."""
+    result = subprocess.run(
+        [sys.executable, "server.py", "--help"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0
+    assert "radarr" in result.stdout
+    assert "trakt" in result.stdout
+
+
+def test_server_with_invalid_toolset_fails():
+    """Passing an invalid toolset name should exit with an error."""
+    result = subprocess.run(
+        [sys.executable, "server.py", "--disable-toolsets", "bogus"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode != 0
+    assert "invalid toolset" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# Existing integration tests (unchanged, below)
+# ---------------------------------------------------------------------------
 
 
 def test_check_trakt_profile_privacy():
@@ -255,6 +371,18 @@ def test_get_radarr_current_downloads():
 
 if __name__ == "__main__":
     load_dotenv("test.env")
+    test_valid_toolsets()
+    test_parse_toolsets_handles_whitespace()
+    test_parse_toolsets_invalid()
+    test_compute_tags_to_disable_default()
+    test_compute_tags_to_disable_with_trakt()
+    test_compute_tags_to_disable_with_radarr()
+    test_compute_tags_to_disable_both()
+    test_compute_tags_to_disable_handles_whitespace()
+    test_compute_tags_to_disable_returns_fresh_set()
+    test_server_help_mentions_disable_toolsets()
+    test_server_help_lists_radarr_and_trakt()
+    test_server_with_invalid_toolset_fails()
     test_check_trakt_profile_privacy()
     test_get_trakt_public_watched_movies()
     test_get_trakt_public_liked_movies()
