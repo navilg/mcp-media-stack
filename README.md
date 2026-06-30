@@ -32,6 +32,7 @@ Set the following as needed:
 - `TRAKT_USERNAME` (optional default username if `username` tool argument is omitted)
 - `RADARR_URL` (required for Radarr tools)
 - `RADARR_API_KEY` (required for Radarr tools)
+- `DISABLE_TOOLSETS` (optional comma-separated list of toolsets to disable at startup, e.g. `radarr,trakt`)
 
 ## Quick start (Docker)
 
@@ -47,6 +48,7 @@ Run container (port 8000):
 docker run --rm -p 8000:8000 \
   -e TRAKT_CLIENT_ID=your_trakt_client_id \
   -e TRAKT_USERNAME=your_trakt_username \
+  -e DISABLE_TOOLSETS=radarr \
   --name mcp-media-stack \
   mcp-media-stack:latest
 ```
@@ -58,6 +60,7 @@ Create `.env`:
 ```env
 TRAKT_CLIENT_ID=your_trakt_client_id
 TRAKT_USERNAME=your_trakt_username
+DISABLE_TOOLSETS=radarr
 ```
 
 Run with env file:
@@ -78,7 +81,7 @@ python server.py --host 0.0.0.0 --port 8000 --transport streamable-http
 
 ## Disabling tool groups
 
-You can disable entire groups of related tools at startup using the `--disable-toolsets` flag. This is useful when you only want to expose Trakt tools or Radarr tools, not both.
+You can disable entire groups of related tools at startup using the `DISABLE_TOOLSETS` environment variable. This is useful when you only want to expose Trakt tools or Radarr tools, not both.
 
 Available toolset names:
 
@@ -94,20 +97,20 @@ Examples:
 python server.py
 
 # Disable all Trakt tools (only Radarr tools are available)
-python server.py --disable-toolsets "trakt"
+DISABLE_TOOLSETS=trakt python server.py
 
 # Disable all Radarr tools (only Trakt tools are available)
-python server.py --disable-toolsets "radarr"
+DISABLE_TOOLSETS=radarr python server.py
 
 # Disable both (no tools available — mostly useful for testing)
-python server.py --disable-toolsets "radarr,trakt"
+DISABLE_TOOLSETS=radarr,trakt python server.py
 ```
 
-Passing an invalid toolset name produces an error:
+Passing an invalid toolset name produces an error at startup:
 
 ```bash
-python server.py --disable-toolsets "invalid_name"
-# error: argument --disable-toolsets: invalid toolset: 'invalid_name'. Valid options: radarr, trakt
+DISABLE_TOOLSETS=invalid_name python server.py
+# error: invalid toolset: 'invalid_name'. Valid options: radarr, trakt
 ```
 
 > **Note:** The `deprecated` tag is always disabled internally and reserved for future use.

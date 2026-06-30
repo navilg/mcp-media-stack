@@ -744,17 +744,12 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host address to bind the server to")
     parser.add_argument("--port", type=int, default=8000, help="Port to bind the server to")
     parser.add_argument("--transport", type=str, default="streamable-http", help="Transport protocol to use (default: streamable-http)")
-
-    parser.add_argument(
-        "--disable-toolsets",
-        type=_parse_toolsets,
-        default="",
-        help="Comma-separated list of toolsets to disable (e.g. 'radarr,trakt')",
-    )
     args = parser.parse_args()
 
-    # Always disable the "deprecated" tag; add any user-specified toolsets
-    tags_to_disable = _compute_tags_to_disable(args.disable_toolsets)
+    # Always disable the "deprecated" tag; add any toolsets from DISABLE_TOOLSETS environment variable
+    disable_toolsets_env = os.getenv("DISABLE_TOOLSETS", "")
+    _parse_toolsets(disable_toolsets_env)  # Validate the environment variable
+    tags_to_disable = _compute_tags_to_disable(disable_toolsets_env)
 
     mcp.disable(tags=tags_to_disable)
 

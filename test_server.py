@@ -113,8 +113,8 @@ def test_compute_tags_to_disable_returns_fresh_set():
 # ---------------------------------------------------------------------------
 
 
-def test_server_help_mentions_disable_toolsets():
-    """The --help output should reference --disable-toolsets."""
+def test_server_help_does_not_mention_disable_toolsets_flag():
+    """The --help output should not reference the removed --disable-toolsets flag."""
     result = subprocess.run(
         [sys.executable, "server.py", "--help"],
         capture_output=True,
@@ -122,29 +122,19 @@ def test_server_help_mentions_disable_toolsets():
         timeout=10,
     )
     assert result.returncode == 0
-    assert "--disable-toolsets" in result.stdout
+    assert "--disable-toolsets" not in result.stdout
 
 
-def test_server_help_lists_radarr_and_trakt():
-    """The --help output should mention radarr and trakt as valid options."""
+def test_server_with_invalid_disable_toolsets_env_fails():
+    """Passing an invalid DISABLE_TOOLSETS value should exit with an error."""
+    env = os.environ.copy()
+    env["DISABLE_TOOLSETS"] = "bogus"
     result = subprocess.run(
-        [sys.executable, "server.py", "--help"],
+        [sys.executable, "server.py"],
         capture_output=True,
         text=True,
         timeout=10,
-    )
-    assert result.returncode == 0
-    assert "radarr" in result.stdout or "radarr" in result.stderr
-    assert "trakt" in result.stdout or "trakt" in result.stderr
-
-
-def test_server_with_invalid_toolset_fails():
-    """Passing an invalid toolset name should exit with an error."""
-    result = subprocess.run(
-        [sys.executable, "server.py", "--disable-toolsets", "bogus"],
-        capture_output=True,
-        text=True,
-        timeout=10,
+        env=env,
     )
     assert result.returncode != 0
     assert "invalid toolset" in result.stderr
