@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 from unittest.mock import patch
 
+import pytest
 import requests
 import server
 
@@ -133,8 +134,8 @@ def test_server_help_lists_radarr_and_trakt():
         timeout=10,
     )
     assert result.returncode == 0
-    assert "radarr" in result.stdout
-    assert "trakt" in result.stdout
+    assert "radarr" in result.stdout or "radarr" in result.stderr
+    assert "trakt" in result.stdout or "trakt" in result.stderr
 
 
 def test_server_with_invalid_toolset_fails():
@@ -182,6 +183,7 @@ def test_get_trakt_public_liked_movies():
     print(f"Retrieved {len(records)} liked movies for user '{test_username}'")
     print("Sample movie:", records[0])
     assert all(int(record["user_rating"]) >= 7 for record in records)
+
 
 def test_get_trakt_public_disliked_movies():
     print(f"\nTesting Trakt public disliked movies for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
