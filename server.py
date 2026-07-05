@@ -210,6 +210,114 @@ def get_trakt_public_watched_movies(username: str | None = None, days: int = 30)
 
 
 @mcp.tool(tags={"trakt"})
+def get_trakt_public_watched_shows(username: str | None = None, days: int = 30) -> str:
+    """
+    Get show episodes watched in the last N days from a public Trakt profile.
+    """
+
+    username = username or os.getenv("TRAKT_USERNAME")
+
+    trakt_client_id = os.getenv("TRAKT_CLIENT_ID")
+    if not trakt_client_id:
+        return "Error: TRAKT_CLIENT_ID is not set"
+    if not username or not username.strip():
+        return "Error: username must not be empty"
+    if days <= 0:
+        return "Error: days must be greater than 0"
+
+    now_utc = datetime.now(timezone.utc)
+    start_at = (now_utc - timedelta(days=days)).isoformat().replace("+00:00", "Z")
+    end_at = now_utc.isoformat().replace("+00:00", "Z")
+
+    headers = {
+        "Content-Type": "application/json",
+        "trakt-api-version": "2",
+        "trakt-api-key": trakt_client_id,
+    }
+
+    endpoint = f"{TRAKT_API_BASE}/users/{username}/history/shows"
+    params = {
+        "start_at": start_at,
+        "end_at": end_at,
+        "limit": "1000",
+        "extended": "full",
+    }
+
+    try:
+        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to fetch public watched shows from Trakt: {exc}"
+
+    history_items = response.json()
+    season_episode_count_cache: dict[tuple[str, int], int | None] = {}
+
+    def _get_season_episode_count(show_ids: dict, season_number: int | None) -> int | None:
+        if not isinstance(season_number, int):
+            return None
+
+        show_slug = show_ids.get("slug") if isinstance(show_ids, dict) else None
+        if not show_slug:
+            return None
+
+        cache_key = (show_slug, season_number)
+        if cache_key in season_episode_count_cache:
+            return season_episode_count_cache[cache_key]
+
+        season_endpoint = f"{TRAKT_API_BASE}/shows/{show_slug}/seasons/{season_number}"
+        season_params = {"extended": "episodes"}
+
+        try:
+            season_response = requests.get(season_endpoint, params=season_params, headers=headers, timeout=20)
+            season_response.raise_for_status()
+        except requests.RequestException:
+            season_episode_count_cache[cache_key] = None
+            return None
+
+        season_payload = season_response.json()
+        if isinstance(season_payload, list) and season_payload:
+            season_payload = season_payload[0]
+
+        episodes = season_payload.get("episodes", []) if isinstance(season_payload, dict) else []
+        total_episodes = len(episodes) if isinstance(episodes, list) else None
+        season_episode_count_cache[cache_key] = total_episodes
+        return total_episodes
+
+    watched_shows: list[dict] = []
+    for item in history_items:
+        show = item.get("show", {})
+        episode = item.get("episode", {})
+
+        season_number = episode.get("season")
+        episode_number = episode.get("number")
+        season_episode_count = _get_season_episode_count(show.get("ids", {}), season_number)
+
+        episode_position = None
+        if isinstance(episode_number, int):
+            if isinstance(season_episode_count, int) and season_episode_count > 0:
+                episode_position = f"{episode_number}/{season_episode_count}"
+            else:
+                episode_position = str(episode_number)
+
+        watched_shows.append(
+            {
+                "title": show.get("title"),
+                "year": show.get("year"),
+                "season": season_number,
+                "episode_position": episode_position,
+                "watched_at": item.get("watched_at"),
+                "episode_rating": episode.get("rating"),
+                "show_rating": show.get("rating"),
+                "genre": show.get("genres", []),
+                "certification": show.get("certification"),
+                "language": show.get("language"),
+            }
+        )
+
+    return _to_tsv(watched_shows)
+
+
+@mcp.tool(tags={"trakt"})
 def get_trakt_public_liked_movies(username: str | None = None, threshold_user_rating: int = 7, limit: int = 50) -> str:
     """
     Get liked movies from a public Trakt profile.

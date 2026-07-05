@@ -8,6 +8,7 @@ The server currently exposes these MCP tools:
 
 - `check_trakt_profile_privacy(username=None)`
 - `get_trakt_public_watched_movies(username=None, days=30)`
+- `get_trakt_public_watched_shows(username=None, days=30)`
 - `get_trakt_public_liked_movies(username=None, threshold_user_rating=7, limit=50)`
 - `get_trakt_public_disliked_movies(username=None, threshold_user_rating=6, limit=50)`
 - `get_trakt_latest_high_rated_movies(days=30, threshold_rating=7, limit=50)`
