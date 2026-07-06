@@ -275,6 +275,17 @@ def test_get_trakt_trending_movies():
     print("Sample movie:", records[0])
 
 
+def test_get_trakt_trending_shows():
+    print("\nTesting Trakt trending shows")
+
+    result_tsv = server.get_trakt_trending_shows()
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    assert len(records) <= 20
+    print(f"Retrieved {len(records)} trending shows from Trakt")
+    print("Sample show:", records[0])
+
+
 def test_get_trakt_popular_shows():
     print("\nTesting Trakt popular shows")
 
@@ -348,6 +359,7 @@ if __name__ == "__main__":
     test_get_trakt_latest_high_rated_shows()
     test_get_trakt_popular_movies()
     test_get_trakt_trending_movies()
+    test_get_trakt_trending_shows()
     test_get_trakt_popular_shows()
     test_get_radarr_movies()
     test_get_radarr_quality_profiles()
