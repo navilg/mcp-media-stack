@@ -6,6 +6,7 @@ import os
 from unittest.mock import patch
 
 import pytest
+import media_stack.trakt
 import server
 
 
@@ -208,6 +209,19 @@ def test_get_trakt_latest_high_rated_movies():
     assert all(float(record["average_rating"]) >= 7 for record in records)
 
 
+def test_get_trakt_latest_high_rated_shows_mocked():
+    print("\nTesting Trakt latest high-rated shows")
+
+    result_tsv = server.get_trakt_latest_high_rated_shows(days=7, threshold_rating=7.5, limit=10)
+
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    print(f"Retrieved {len(records)} latest high-rated shows from Trakt")
+    print("Sample show:", records[0])
+    assert all(float(record["average_rating"]) >= 7.5 for record in records)
+
+
 def test_get_trakt_popular_movies():
     print(f"\nTesting Trakt popular movies")
     result_tsv = server.get_trakt_popular_movies()
@@ -276,6 +290,7 @@ if __name__ == "__main__":
     test_get_trakt_public_liked_movies()
     test_get_trakt_public_disliked_movies()
     test_get_trakt_latest_high_rated_movies()
+    test_get_trakt_latest_high_rated_shows_mocked()
     test_get_trakt_popular_movies()
     test_get_radarr_movies()
     test_get_radarr_quality_profiles()

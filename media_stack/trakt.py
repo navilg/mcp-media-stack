@@ -367,6 +367,58 @@ def get_trakt_latest_high_rated_movies(
     return to_tsv(latest_movies)
 
 
+def get_trakt_latest_high_rated_shows(
+    days: int = 30,
+    threshold_rating: float = 7.5,
+    limit: int = 50,
+) -> str:
+    """Get recently aired high-rated shows from Trakt."""
+    headers = _get_trakt_headers()
+
+    if isinstance(headers, str):
+        return headers
+    if days <= 0:
+        return "Error: days must be greater than 0"
+
+    now_utc = datetime.now(timezone.utc)
+    start_at = (now_utc - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    endpoint = f"{TRAKT_API_BASE}/calendars/all/shows/{start_at}/{days}"
+    params = {
+        "extended": "full",
+        "ratings": f"{int(threshold_rating * 10)}-100",
+    }
+
+    try:
+        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to fetch latest shows from Trakt: {exc}"
+
+    shows_data = response.json()[:limit]
+    latest_shows: list[dict] = []
+    for item in shows_data:
+        show = item.get("show", {})
+        latest_shows.append(
+            {
+                "title": show.get("title"),
+                "year": show.get("year"),
+                "first_aired": item.get("first_aired"),
+                "runtime": str(show.get("runtime")) + " min" if show.get("runtime") else None,
+                "average_rating": round(show.get("rating"), 2)
+                if isinstance(show.get("rating"), (int, float))
+                else None,
+                "genre": show.get("genres", []),
+                "certification": show.get("certification"),
+                "language": show.get("language"),
+                "network": show.get("network"),
+                "overview": show.get("overview"),
+            }
+        )
+
+    return to_tsv(latest_shows)
+
+
 def get_trakt_popular_movies(limit: int = 50) -> str:
     """Get popular movies from Trakt."""
     headers = _get_trakt_headers()
