@@ -25,7 +25,10 @@ def _get_trakt_headers() -> dict[str, str] | str:
 
 
 def check_trakt_profile_privacy(username: str | None = None) -> str:
-    """Check whether a Trakt user's profile is public or private."""
+    """Check Trakt profile visibility.
+    INPUT: username (optional; defaults to TRAKT_USERNAME).
+    OUTPUT: text status message or Error string.
+    """
     username = _resolve_username(username)
     headers = _get_trakt_headers()
 
@@ -82,7 +85,10 @@ def check_trakt_profile_privacy(username: str | None = None) -> str:
 
 
 def get_trakt_public_watched_movies(username: str | None = None, days: int = 30) -> str:
-    """Get movies watched in the last N days from a public Trakt profile."""
+    """Get watched movies from public Trakt profile.
+    INPUT: username (optional), days (>0, default 30).
+    OUTPUT: TSV rows (watched movie metadata) or Error string.
+    """
     username = _resolve_username(username)
     headers = _get_trakt_headers()
 
@@ -131,7 +137,10 @@ def get_trakt_public_watched_movies(username: str | None = None, days: int = 30)
 
 
 def get_trakt_public_watched_shows(username: str | None = None, days: int = 30) -> str:
-    """Get show episodes watched in the last N days from a public Trakt profile."""
+    """Get watched show episodes from public Trakt profile.
+    INPUT: username (optional), days (>0, default 30).
+    OUTPUT: TSV rows (show/season/episode metadata) or Error string.
+    """
     username = _resolve_username(username)
     headers = _get_trakt_headers()
 
@@ -233,7 +242,10 @@ def get_trakt_public_liked_movies(
     threshold_user_rating: int = 7,
     limit: int = 50,
 ) -> str:
-    """Get liked movies from a public Trakt profile."""
+    """Get liked movies from public Trakt profile.
+    INPUT: username (optional), threshold_user_rating (default 7), limit (default 50).
+    OUTPUT: TSV rows (liked movie metadata) or Error string.
+    """
     username = _resolve_username(username)
     headers = _get_trakt_headers()
 
@@ -278,11 +290,9 @@ def get_trakt_public_liked_shows(
     threshold_user_rating: float = 7.5,
     limit: int = 50,
 ) -> str:
-    """Get liked shows from a public Trakt profile.
-
-    A show is considered liked if either:
-    - user rated it >= threshold_user_rating at show level, or
-    - user has completed all aired episodes.
+    """Get liked shows from public Trakt profile.
+    INPUT: username (optional), threshold_user_rating (default 7.5), limit (default 50).
+    OUTPUT: TSV rows (liked by rating and/or watched-all-aired) or Error string.
     """
     username = _resolve_username(username)
     headers = _get_trakt_headers()
@@ -421,7 +431,10 @@ def get_trakt_public_disliked_movies(
     threshold_user_rating: int = 6,
     limit: int = 50,
 ) -> str:
-    """Get disliked movies from a public Trakt profile."""
+    """Get disliked movies from public Trakt profile.
+    INPUT: username (optional), threshold_user_rating (default 6), limit (default 50).
+    OUTPUT: TSV rows (disliked movie metadata) or Error string.
+    """
     username = _resolve_username(username)
     headers = _get_trakt_headers()
 
@@ -466,7 +479,10 @@ def get_trakt_latest_high_rated_movies(
     threshold_rating: float = 7,
     limit: int = 50,
 ) -> str:
-    """Get recently released high-rated movies from Trakt."""
+    """Get latest high-rated movies.
+    INPUT: days (>0, default 30), threshold_rating (default 7), limit (default 50).
+    OUTPUT: TSV rows (latest movie metadata) or Error string.
+    """
     headers = _get_trakt_headers()
 
     if isinstance(headers, str):
@@ -516,7 +532,10 @@ def get_trakt_latest_high_rated_shows(
     threshold_rating: float = 7.5,
     limit: int = 50,
 ) -> str:
-    """Get recently aired high-rated shows from Trakt."""
+    """Get latest high-rated shows.
+    INPUT: days (>0, default 30), threshold_rating (default 7.5), limit (default 50).
+    OUTPUT: TSV rows (latest show metadata) or Error string.
+    """
     headers = _get_trakt_headers()
 
     if isinstance(headers, str):
@@ -564,7 +583,10 @@ def get_trakt_latest_high_rated_shows(
 
 
 def get_trakt_popular_shows(limit: int = 50) -> str:
-    """Get popular shows from Trakt."""
+    """Get popular shows.
+    INPUT: limit (default 50).
+    OUTPUT: TSV rows (popular show metadata) or Error string.
+    """
     headers = _get_trakt_headers()
 
     if isinstance(headers, str):
@@ -602,7 +624,10 @@ def get_trakt_popular_shows(limit: int = 50) -> str:
 
 
 def get_trakt_trending_movies() -> str:
-    """Get top 20 trending movies from Trakt."""
+    """Get top 20 trending movies.
+    INPUT: none.
+    OUTPUT: TSV rows (up to 20 trending movies) or Error string.
+    """
     headers = _get_trakt_headers()
 
     if isinstance(headers, str):
@@ -644,7 +669,10 @@ def get_trakt_trending_movies() -> str:
 
 
 def get_trakt_trending_shows() -> str:
-    """Get top 20 trending shows from Trakt."""
+    """Get top 20 trending shows.
+    INPUT: none.
+    OUTPUT: TSV rows (up to 20 trending shows) or Error string.
+    """
     headers = _get_trakt_headers()
 
     if isinstance(headers, str):
@@ -687,7 +715,10 @@ def get_trakt_trending_shows() -> str:
 
 
 def get_trakt_popular_movies(limit: int = 50) -> str:
-    """Get popular movies from Trakt."""
+    """Get popular movies.
+    INPUT: limit (default 50).
+    OUTPUT: TSV rows (popular movie metadata) or Error string.
+    """
     headers = _get_trakt_headers()
 
     if isinstance(headers, str):
