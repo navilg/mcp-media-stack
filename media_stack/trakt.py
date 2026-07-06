@@ -457,6 +457,48 @@ def get_trakt_popular_shows(limit: int = 50) -> str:
     return to_tsv(popular_shows)
 
 
+def get_trakt_trending_movies() -> str:
+    """Get top 20 trending movies from Trakt."""
+    headers = _get_trakt_headers()
+
+    if isinstance(headers, str):
+        return headers
+
+    endpoint = f"{TRAKT_API_BASE}/movies/trending"
+    params = {
+        "extended": "full",
+        "limit": "20",
+    }
+
+    try:
+        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to fetch trending movies from Trakt: {exc}"
+
+    trending_data = response.json()[:20]
+    trending_movies: list[dict] = []
+    for item in trending_data:
+        movie = item.get("movie", {})
+        trending_movies.append(
+            {
+                "title": movie.get("title"),
+                "year": movie.get("year"),
+                "watchers": item.get("watchers"),
+                "runtime": str(movie.get("runtime")) + " min" if movie.get("runtime") else None,
+                "average_rating": round(movie.get("rating"), 2)
+                if isinstance(movie.get("rating"), (int, float))
+                else None,
+                "genre": movie.get("genres", []),
+                "certification": movie.get("certification"),
+                "language": movie.get("language"),
+                "overview": movie.get("overview"),
+            }
+        )
+
+    return to_tsv(trending_movies)
+
+
 def get_trakt_popular_movies(limit: int = 50) -> str:
     """Get popular movies from Trakt."""
     headers = _get_trakt_headers()

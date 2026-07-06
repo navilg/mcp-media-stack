@@ -24,6 +24,7 @@ from media_stack.trakt import (
     get_trakt_latest_high_rated_shows,
     get_trakt_popular_movies,
     get_trakt_popular_shows,
+    get_trakt_trending_movies,
     get_trakt_public_disliked_movies,
     get_trakt_public_liked_movies,
     get_trakt_public_watched_movies,
@@ -44,6 +45,7 @@ def _register_tools() -> None:
         get_trakt_latest_high_rated_shows,
         get_trakt_popular_movies,
         get_trakt_popular_shows,
+        get_trakt_trending_movies,
     ]
     radarr_tools = [
         get_radarr_movies,

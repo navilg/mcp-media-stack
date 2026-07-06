@@ -3,10 +3,7 @@ import subprocess
 import sys
 from dotenv import load_dotenv
 import os
-from unittest.mock import patch
 
-import pytest
-import media_stack.trakt
 import server
 
 
@@ -26,6 +23,27 @@ def _parse_tsv(tsv_str: str) -> list[dict]:
             record[header] = values[i] if i < len(values) else ""
         records.append(record)
     return records
+
+
+def _set_env(overrides: dict[str, str | None]) -> dict[str, str | None]:
+    """Temporarily set/unset env vars and return previous values for restore."""
+    previous: dict[str, str | None] = {}
+    for key, value in overrides.items():
+        previous[key] = os.environ.get(key)
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+    return previous
+
+
+def _restore_env(previous: dict[str, str | None]) -> None:
+    """Restore env vars previously captured by _set_env."""
+    for key, value in previous.items():
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
 
 
 
@@ -52,11 +70,17 @@ def test_parse_toolsets_handles_whitespace():
 
 def test_parse_toolsets_invalid():
     """Unknown toolset names raise ArgumentTypeError."""
-    with pytest.raises(argparse.ArgumentTypeError, match="invalid toolset: 'invalid_toolset'"):
+    try:
         server._parse_toolsets("invalid_toolset")
+        assert False, "Expected argparse.ArgumentTypeError for invalid toolset"
+    except argparse.ArgumentTypeError as exc:
+        assert "invalid toolset: 'invalid_toolset'" in str(exc)
 
-    with pytest.raises(argparse.ArgumentTypeError, match="invalid toolset: 'bogus'"):
+    try:
         server._parse_toolsets("trakt,bogus")
+        assert False, "Expected argparse.ArgumentTypeError for invalid toolset in list"
+    except argparse.ArgumentTypeError as exc:
+        assert "invalid toolset: 'bogus'" in str(exc)
 
 
 def test_compute_tags_to_disable_default():
@@ -164,17 +188,26 @@ def test_get_trakt_public_watched_shows():
 def test_get_trakt_public_watched_shows_validation_errors():
     print("\nTesting Trakt public watched shows validation")
 
-    with patch.dict(os.environ, {}, clear=True):
+    previous = _set_env({"TRAKT_CLIENT_ID": None})
+    try:
         result = server.get_trakt_public_watched_shows("test-user")
         assert result == "Error: TRAKT_CLIENT_ID is not set"
+    finally:
+        _restore_env(previous)
 
-    with patch.dict(os.environ, {"TRAKT_CLIENT_ID": "test-client-id"}, clear=True):
+    previous = _set_env({"TRAKT_CLIENT_ID": "test-client-id"})
+    try:
         result = server.get_trakt_public_watched_shows("   ")
         assert result == "Error: username must not be empty"
+    finally:
+        _restore_env(previous)
 
-    with patch.dict(os.environ, {"TRAKT_CLIENT_ID": "test-client-id"}, clear=True):
+    previous = _set_env({"TRAKT_CLIENT_ID": "test-client-id"})
+    try:
         result = server.get_trakt_public_watched_shows("test-user", days=0)
         assert result == "Error: days must be greater than 0"
+    finally:
+        _restore_env(previous)
 
 
 def test_get_trakt_public_liked_movies():
@@ -209,7 +242,7 @@ def test_get_trakt_latest_high_rated_movies():
     assert all(float(record["average_rating"]) >= 7 for record in records)
 
 
-def test_get_trakt_latest_high_rated_shows_mocked():
+def test_get_trakt_latest_high_rated_shows():
     print("\nTesting Trakt latest high-rated shows")
 
     result_tsv = server.get_trakt_latest_high_rated_shows(days=7, threshold_rating=7.5, limit=10)
@@ -231,7 +264,18 @@ def test_get_trakt_popular_movies():
     print("Sample movie:", records[0])
 
 
-def test_get_trakt_popular_shows_mocked():
+def test_get_trakt_trending_movies():
+    print("\nTesting Trakt trending movies")
+
+    result_tsv = server.get_trakt_trending_movies()
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    assert len(records) <= 20
+    print(f"Retrieved {len(records)} trending movies from Trakt")
+    print("Sample movie:", records[0])
+
+
+def test_get_trakt_popular_shows():
     print("\nTesting Trakt popular shows")
 
     result_tsv = server.get_trakt_popular_shows(limit=10)
@@ -301,9 +345,10 @@ if __name__ == "__main__":
     test_get_trakt_public_liked_movies()
     test_get_trakt_public_disliked_movies()
     test_get_trakt_latest_high_rated_movies()
-    test_get_trakt_latest_high_rated_shows_mocked()
+    test_get_trakt_latest_high_rated_shows()
     test_get_trakt_popular_movies()
-    test_get_trakt_popular_shows_mocked()
+    test_get_trakt_trending_movies()
+    test_get_trakt_popular_shows()
     test_get_radarr_movies()
     test_get_radarr_quality_profiles()
     test_get_radarr_root_folders()
