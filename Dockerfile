@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY server.py .
+COPY media_stack ./media_stack
 
 # Expose port (FastMCP default HTTP port)
 EXPOSE 8000
