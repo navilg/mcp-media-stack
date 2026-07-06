@@ -1,4 +1,5 @@
 import os
+from math import ceil
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -270,6 +271,149 @@ def get_trakt_public_liked_movies(
         )
 
     return to_tsv(liked_movies)
+
+
+def get_trakt_public_liked_shows(
+    username: str | None = None,
+    threshold_user_rating: float = 7.5,
+    limit: int = 50,
+) -> str:
+    """Get liked shows from a public Trakt profile.
+
+    A show is considered liked if either:
+    - user rated it >= threshold_user_rating at show level, or
+    - user has completed all aired episodes.
+    """
+    username = _resolve_username(username)
+    headers = _get_trakt_headers()
+
+    if isinstance(headers, str):
+        return headers
+    if not username or not username.strip():
+        return "Error: username must not be empty"
+    if limit <= 0:
+        return "Error: limit must be greater than 0"
+    if threshold_user_rating < 1 or threshold_user_rating > 10:
+        return "Error: threshold_user_rating must be between 1 and 10"
+
+    min_rating = ceil(threshold_user_rating)
+    ratings = ",".join(str(rating_value) for rating_value in range(min_rating, 11))
+
+    ratings_endpoint = f"{TRAKT_API_BASE}/users/{username}/ratings/shows/{ratings}"
+    watched_endpoint = f"{TRAKT_API_BASE}/users/{username}/watched/shows"
+
+    try:
+        rated_response = requests.get(
+            ratings_endpoint,
+            params={"limit": "1000", "extended": "full"},
+            headers=headers,
+            timeout=20,
+        )
+        rated_response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to fetch public liked shows from Trakt ratings: {exc}"
+
+    try:
+        watched_response = requests.get(
+            watched_endpoint,
+            params={"extended": "full"},
+            headers=headers,
+            timeout=20,
+        )
+        watched_response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to fetch public watched shows from Trakt: {exc}"
+
+    rated_items = rated_response.json()
+    watched_items = watched_response.json()
+
+    def _show_key(show: dict) -> str:
+        ids = show.get("ids", {}) if isinstance(show, dict) else {}
+        trakt_id = ids.get("trakt")
+        if trakt_id is not None:
+            return f"trakt:{trakt_id}"
+        slug = ids.get("slug")
+        if slug:
+            return f"slug:{slug}"
+        return f"title:{show.get('title')}:{show.get('year')}"
+
+    watched_latest_map: dict[str, str | None] = {}
+    fully_watched_map: dict[str, dict] = {}
+    for item in watched_items:
+        show = item.get("show", {})
+        key = _show_key(show)
+        last_watched_at = item.get("last_watched_at")
+        watched_latest_map[key] = last_watched_at
+
+        aired = item.get("aired")
+        completed = item.get("completed")
+        is_fully_watched = (
+            isinstance(aired, int)
+            and isinstance(completed, int)
+            and aired > 0
+            and completed >= aired
+        )
+        if is_fully_watched:
+            fully_watched_map[key] = {
+                "show": show,
+                "latest_watched_at": last_watched_at,
+            }
+
+    merged: dict[str, dict] = {}
+
+    for item in rated_items:
+        show = item.get("show", {})
+        key = _show_key(show)
+        reason = "rated_7.5+"
+        if threshold_user_rating != 7.5:
+            reason = f"rated_{threshold_user_rating}+"
+
+        merged[key] = {
+            "title": show.get("title"),
+            "year": show.get("year"),
+            "runtime": str(show.get("runtime")) + " min" if show.get("runtime") else None,
+            "average_rating": show.get("rating"),
+            "user_rating": item.get("rating"),
+            "latest_watched_at": watched_latest_map.get(key) or item.get("rated_at"),
+            "genre": show.get("genres", []),
+            "certification": show.get("certification"),
+            "language": show.get("language"),
+            "network": show.get("network"),
+            "overview": show.get("overview"),
+            "liked_consideration": {reason},
+        }
+
+    for key, watched_data in fully_watched_map.items():
+        show = watched_data.get("show", {})
+        latest_watched_at = watched_data.get("latest_watched_at")
+        if key in merged:
+            merged[key]["liked_consideration"].add("watched_all_aired_episodes")
+            if latest_watched_at and not merged[key].get("latest_watched_at"):
+                merged[key]["latest_watched_at"] = latest_watched_at
+            continue
+
+        merged[key] = {
+            "title": show.get("title"),
+            "year": show.get("year"),
+            "runtime": str(show.get("runtime")) + " min" if show.get("runtime") else None,
+            "average_rating": show.get("rating"),
+            "user_rating": None,
+            "latest_watched_at": latest_watched_at,
+            "genre": show.get("genres", []),
+            "certification": show.get("certification"),
+            "language": show.get("language"),
+            "network": show.get("network"),
+            "overview": show.get("overview"),
+            "liked_consideration": {"watched_all_aired_episodes"},
+        }
+
+    liked_shows = list(merged.values())
+    for item in liked_shows:
+        reasons = sorted(item.get("liked_consideration", set()))
+        item["liked_consideration"] = ",".join(reasons)
+
+    liked_shows.sort(key=lambda item: item.get("latest_watched_at") or "", reverse=True)
+    return to_tsv(liked_shows[:limit])
 
 
 def get_trakt_public_disliked_movies(

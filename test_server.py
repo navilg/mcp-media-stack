@@ -221,6 +221,22 @@ def test_get_trakt_public_liked_movies():
     assert all(int(record["user_rating"]) >= 7 for record in records)
 
 
+def test_get_trakt_public_liked_shows():
+    print(f"\nTesting Trakt public liked shows for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
+    test_username = os.getenv("TEST_TRAKT_USERNAME")
+    result_tsv = server.get_trakt_public_liked_shows(test_username)
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+
+    records = _parse_tsv(result_tsv)
+    if not records:
+        print(f"No liked shows found for user '{test_username}'")
+        return
+
+    print(f"Retrieved {len(records)} liked shows for user '{test_username}'")
+    print("Sample show:", records[0])
+    assert "liked_consideration" in records[0]
+
+
 def test_get_trakt_public_disliked_movies():
     print(f"\nTesting Trakt public disliked movies for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
     test_username = os.getenv("TEST_TRAKT_USERNAME")
@@ -354,6 +370,7 @@ if __name__ == "__main__":
     test_check_trakt_profile_privacy()
     test_get_trakt_public_watched_movies()
     test_get_trakt_public_liked_movies()
+    test_get_trakt_public_liked_shows()
     test_get_trakt_public_disliked_movies()
     test_get_trakt_latest_high_rated_movies()
     test_get_trakt_latest_high_rated_shows()
