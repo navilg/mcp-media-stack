@@ -231,6 +231,17 @@ def test_get_trakt_popular_movies():
     print("Sample movie:", records[0])
 
 
+def test_get_trakt_popular_shows_mocked():
+    print("\nTesting Trakt popular shows")
+
+    result_tsv = server.get_trakt_popular_shows(limit=10)
+
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    print(f"Retrieved {len(records)} popular shows from Trakt")
+    print("Sample show:", records[0])
+
 def test_get_radarr_movies():
     print("\nTesting Radarr movies list")
     result_tsv = server.get_radarr_movies()
@@ -292,6 +303,7 @@ if __name__ == "__main__":
     test_get_trakt_latest_high_rated_movies()
     test_get_trakt_latest_high_rated_shows_mocked()
     test_get_trakt_popular_movies()
+    test_get_trakt_popular_shows_mocked()
     test_get_radarr_movies()
     test_get_radarr_quality_profiles()
     test_get_radarr_root_folders()

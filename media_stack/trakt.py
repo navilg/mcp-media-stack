@@ -419,6 +419,44 @@ def get_trakt_latest_high_rated_shows(
     return to_tsv(latest_shows)
 
 
+def get_trakt_popular_shows(limit: int = 50) -> str:
+    """Get popular shows from Trakt."""
+    headers = _get_trakt_headers()
+
+    if isinstance(headers, str):
+        return headers
+
+    endpoint = f"{TRAKT_API_BASE}/shows/popular"
+    params = {"extended": "full"}
+
+    try:
+        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to fetch popular shows from Trakt: {exc}"
+
+    shows_data = response.json()[:limit]
+    popular_shows: list[dict] = []
+    for show in shows_data:
+        popular_shows.append(
+            {
+                "title": show.get("title"),
+                "year": show.get("year"),
+                "runtime": str(show.get("runtime")) + " min" if show.get("runtime") else None,
+                "average_rating": round(show.get("rating"), 2)
+                if isinstance(show.get("rating"), (int, float))
+                else None,
+                "genre": show.get("genres", []),
+                "certification": show.get("certification"),
+                "language": show.get("language"),
+                "network": show.get("network"),
+                "overview": show.get("overview"),
+            }
+        )
+
+    return to_tsv(popular_shows)
+
+
 def get_trakt_popular_movies(limit: int = 50) -> str:
     """Get popular movies from Trakt."""
     headers = _get_trakt_headers()
