@@ -1,0 +1,1 @@
+"""Media Stack MCP package."""
