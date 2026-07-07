@@ -221,9 +221,9 @@ def add_sonarr_show(
     )
 
 
-def delete_sonarr_show(show_query: str, delete_files: bool = False) -> str:
+def delete_sonarr_show(show_query: str, delete_files: bool = True) -> str:
     """Delete a show from Sonarr.
-    INPUT: show_query, delete_files (default false).
+    INPUT: show_query, delete_files (default true).
     OUTPUT: confirmation text or Error string.
     """
     if not show_query or not show_query.strip():

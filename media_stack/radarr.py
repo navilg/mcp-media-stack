@@ -195,9 +195,9 @@ def add_radarr_movie(movie_query: str, root_folder_path: str, quality_profile_id
     return f"Added Radarr movie '{added_title}' at '{added_path}' with quality profile {quality_profile_id}"
 
 
-def delete_radarr_movie(movie_query: str, delete_files: bool = False) -> str:
+def delete_radarr_movie(movie_query: str, delete_files: bool = True) -> str:
     """Delete a movie from Radarr.
-    INPUT: movie_query, delete_files (default false).
+    INPUT: movie_query, delete_files (default true).
     OUTPUT: confirmation text or Error string.
     """
     if not movie_query or not movie_query.strip():
