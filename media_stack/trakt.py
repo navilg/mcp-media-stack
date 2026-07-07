@@ -119,8 +119,28 @@ def get_trakt_public_watched_movies(username: str | None = None, days: int = 30)
 
     history_items = response.json()
     watched_movies: list[dict] = []
+    seen_movie_keys: set[str] = set()
+
+    def _movie_key(movie: dict) -> str:
+        ids = movie.get("ids", {}) if isinstance(movie, dict) else {}
+        trakt_id = ids.get("trakt")
+        if trakt_id is not None:
+            return f"trakt:{trakt_id}"
+        tmdb_id = ids.get("tmdb")
+        if tmdb_id is not None:
+            return f"tmdb:{tmdb_id}"
+        imdb_id = ids.get("imdb")
+        if imdb_id:
+            return f"imdb:{imdb_id}"
+        return f"title:{movie.get('title')}:{movie.get('year')}"
+
     for item in history_items:
         movie = item.get("movie", {})
+        movie_key = _movie_key(movie)
+        if movie_key in seen_movie_keys:
+            continue
+        seen_movie_keys.add(movie_key)
+
         watched_movies.append(
             {
                 "watched_at": item.get("watched_at"),
@@ -204,12 +224,32 @@ def get_trakt_public_watched_shows(username: str | None = None, days: int = 30) 
         return total_episodes
 
     watched_shows: list[dict] = []
+    seen_show_episode_keys: set[str] = set()
+
+    def _show_episode_key(show: dict, season_number: int | None, episode_number: int | None) -> str:
+        ids = show.get("ids", {}) if isinstance(show, dict) else {}
+        trakt_id = ids.get("trakt")
+        if trakt_id is not None:
+            show_key = f"trakt:{trakt_id}"
+        else:
+            slug = ids.get("slug")
+            if slug:
+                show_key = f"slug:{slug}"
+            else:
+                show_key = f"title:{show.get('title')}:{show.get('year')}"
+        return f"{show_key}|season:{season_number}|episode:{episode_number}"
+
     for item in history_items:
         show = item.get("show", {})
         episode = item.get("episode", {})
 
         season_number = episode.get("season")
         episode_number = episode.get("number")
+        show_episode_key = _show_episode_key(show, season_number, episode_number)
+        if show_episode_key in seen_show_episode_keys:
+            continue
+        seen_show_episode_keys.add(show_episode_key)
+
         season_episode_count = _get_season_episode_count(show.get("ids", {}), season_number)
 
         episode_position = None
