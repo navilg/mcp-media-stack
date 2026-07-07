@@ -283,3 +283,61 @@ def delete_sonarr_show(show_query: str, delete_files: bool = False) -> str:
         return f"Error: Failed to delete show from Sonarr: {exc}"
 
     return f"Deleted Sonarr show '{series_title}' (delete_files={delete_files})"
+
+
+def get_sonarr_current_downloads() -> str:
+    """Get current Sonarr downloads.
+    INPUT: none.
+    OUTPUT: TSV rows (download status/progress) or Error string.
+    """
+    sonarr_config = get_sonarr_config()
+    if isinstance(sonarr_config, str):
+        return sonarr_config
+
+    sonarr_url, sonarr_api_key = sonarr_config
+    endpoint = f"{sonarr_url}/api/v3/queue"
+    headers = {"X-Api-Key": sonarr_api_key}
+    params = {
+        "page": 1,
+        "pageSize": 1000,
+        "sortKey": "title",
+        "sortDirection": "ascending",
+    }
+
+    try:
+        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to fetch current downloads from Sonarr: {exc}"
+
+    queue_data = response.json()
+    queue_items = queue_data.get("records", queue_data) if isinstance(queue_data, dict) else queue_data
+
+    downloads: list[dict] = []
+    for item in queue_items:
+        if str(item.get("status", "")).lower() != "downloading":
+            continue
+
+        size = item.get("size")
+        size_left = item.get("sizeleft")
+        progress = None
+        if isinstance(size, (int, float)) and size > 0 and isinstance(size_left, (int, float)):
+            progress = round(((size - size_left) / size) * 100, 1)
+
+        downloads.append(
+            {
+                "title": item.get("title"),
+                "status": item.get("status"),
+                "protocol": item.get("protocol"),
+                "progress_percent": progress,
+                "size_left_bytes": size_left,
+                "time_left": item.get("timeleft"),
+                "estimated_completion_time": item.get("estimatedCompletionTime"),
+                "download_id": item.get("downloadId"),
+                "series_id": item.get("seriesId"),
+                "episode_id": item.get("episodeId"),
+            }
+        )
+
+    downloads.sort(key=lambda download: download["title"] or "")
+    return to_tsv(downloads)

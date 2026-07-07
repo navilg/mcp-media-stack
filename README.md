@@ -24,6 +24,7 @@ The server currently exposes these MCP tools:
 - `get_sonarr_root_folders()`
 - `add_sonarr_show(show_query, root_folder_path, quality_profile_id, season_number_to_monitor)`
 - `delete_sonarr_show(show_query, delete_files=False)`
+- `get_sonarr_current_downloads()`
 
 ## Prerequisites
 
@@ -95,7 +96,7 @@ Available toolset names:
 
 - `trakt`: All Trakt tools (profile, watched, liked, disliked, latest, popular, trending)
 - `radarr`: All Radarr tools (list, quality, root folders, add, delete, downloads)
-- `sonarr`: Sonarr tools (`get_sonarr_shows`, `get_sonarr_quality_profiles`, `get_sonarr_root_folders`, `add_sonarr_show`, `delete_sonarr_show`)
+- `sonarr`: Sonarr tools (`get_sonarr_shows`, `get_sonarr_quality_profiles`, `get_sonarr_root_folders`, `add_sonarr_show`, `delete_sonarr_show`, `get_sonarr_current_downloads`)
 
 Examples:
 
@@ -177,3 +178,4 @@ docker stop mcp-media-stack
 - `get_radarr_current_downloads` reports queue items whose status is `downloading`, including progress percent and time-left fields when Radarr provides them.
 - `add_sonarr_show` adds a series and monitors only the requested season, not all seasons.
 - `delete_sonarr_show` looks up a series by query string before deleting it; set `delete_files=True` to remove files from disk as well.
+- `get_sonarr_current_downloads` reports queue items whose status is `downloading`, including progress percent and time-left fields when Sonarr provides them.
