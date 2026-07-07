@@ -19,6 +19,12 @@ The server currently exposes these MCP tools:
 - `add_radarr_movie(movie_query, root_folder_path, quality_profile_id)`
 - `delete_radarr_movie(movie_query, delete_files=False)`
 - `get_radarr_current_downloads()`
+- `get_sonarr_shows()`
+- `get_sonarr_quality_profiles()`
+- `get_sonarr_root_folders()`
+- `add_sonarr_show(show_query, root_folder_path, quality_profile_id, season_number_to_monitor)`
+- `delete_sonarr_show(show_query, delete_files=False)`
+- `get_sonarr_current_downloads()`
 
 ## Prerequisites
 
@@ -33,6 +39,8 @@ Set the following as needed:
 - `TRAKT_USERNAME` (optional default username if `username` tool argument is omitted)
 - `RADARR_URL` (required for Radarr tools)
 - `RADARR_API_KEY` (required for Radarr tools)
+- `SONARR_URL` (required for Sonarr tools)
+- `SONARR_API_KEY` (required for Sonarr tools)
 - `DISABLE_TOOLSETS` (optional comma-separated list of toolsets to disable at startup, e.g. `radarr,trakt`)
 
 ## Quick start (Docker)
@@ -86,10 +94,9 @@ You can disable entire groups of related tools at startup using the `DISABLE_TOO
 
 Available toolset names:
 
-| Toolset   | Tools affected                                                           |
-|-----------|--------------------------------------------------------------------------|
-| `trakt`   | All 6 Trakt tools (profile, watched, liked, disliked, latest, popular)   |
-| `radarr`  | All 6 Radarr tools (list, quality, root folders, add, delete, downloads) |
+- `trakt`: All Trakt tools (profile, watched, liked, disliked, latest, popular, trending)
+- `radarr`: All Radarr tools (list, quality, root folders, add, delete, downloads)
+- `sonarr`: Sonarr tools (`get_sonarr_shows`, `get_sonarr_quality_profiles`, `get_sonarr_root_folders`, `add_sonarr_show`, `delete_sonarr_show`, `get_sonarr_current_downloads`)
 
 Examples:
 
@@ -111,7 +118,7 @@ Passing an invalid toolset name produces an error at startup:
 
 ```bash
 DISABLE_TOOLSETS=invalid_name python server.py
-# error: invalid toolset: 'invalid_name'. Valid options: radarr, trakt
+# error: invalid toolset: 'invalid_name'. Valid options: radarr, sonarr, trakt
 ```
 
 > **Note:** The `deprecated` tag is always disabled internally and reserved for future use.
@@ -169,3 +176,6 @@ docker stop mcp-media-stack
 - `add_radarr_movie` looks up the movie by query string, then adds it with monitor set to movie only, minimum availability set to released, and search enabled.
 - `delete_radarr_movie` looks up the movie by query string before deleting it; set `delete_files=True` to remove the file from disk as well.
 - `get_radarr_current_downloads` reports queue items whose status is `downloading`, including progress percent and time-left fields when Radarr provides them.
+- `add_sonarr_show` adds a series and monitors only the requested season, not all seasons.
+- `delete_sonarr_show` looks up a series by query string before deleting it; set `delete_files=True` to remove files from disk as well.
+- `get_sonarr_current_downloads` reports queue items whose status is `downloading`, including progress percent and time-left fields when Sonarr provides them.

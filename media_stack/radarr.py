@@ -5,7 +5,10 @@ from media_stack.formatting import to_tsv
 
 
 def get_radarr_movies() -> str:
-    """Get the list of movies in Radarr with detailed metadata."""
+    """Get movies in Radarr.
+    INPUT: none.
+    OUTPUT: TSV rows (movie library metadata) or Error string.
+    """
     radarr_config = get_radarr_config()
     if isinstance(radarr_config, str):
         return radarr_config
@@ -51,7 +54,10 @@ def get_radarr_movies() -> str:
 
 
 def get_radarr_quality_profiles() -> str:
-    """Get the list of Radarr quality profiles."""
+    """Get Radarr quality profiles.
+    INPUT: none.
+    OUTPUT: TSV rows (quality profiles) or Error string.
+    """
     radarr_config = get_radarr_config()
     if isinstance(radarr_config, str):
         return radarr_config
@@ -84,7 +90,10 @@ def get_radarr_quality_profiles() -> str:
 
 
 def get_radarr_root_folders() -> str:
-    """Get the list of Radarr root folders."""
+    """Get Radarr root folders.
+    INPUT: none.
+    OUTPUT: TSV rows (root folder details) or Error string.
+    """
     radarr_config = get_radarr_config()
     if isinstance(radarr_config, str):
         return radarr_config
@@ -117,7 +126,10 @@ def get_radarr_root_folders() -> str:
 
 
 def add_radarr_movie(movie_query: str, root_folder_path: str, quality_profile_id: int) -> str:
-    """Add a movie to Radarr using the provided root folder and quality profile."""
+    """Add a movie to Radarr.
+    INPUT: movie_query, root_folder_path, quality_profile_id.
+    OUTPUT: confirmation text or Error string.
+    """
     if not movie_query or not movie_query.strip():
         return "Error: movie_query must not be empty"
     if not root_folder_path or not root_folder_path.strip():
@@ -183,8 +195,11 @@ def add_radarr_movie(movie_query: str, root_folder_path: str, quality_profile_id
     return f"Added Radarr movie '{added_title}' at '{added_path}' with quality profile {quality_profile_id}"
 
 
-def delete_radarr_movie(movie_query: str, delete_files: bool = False) -> str:
-    """Delete a movie from Radarr."""
+def delete_radarr_movie(movie_query: str, delete_files: bool = True) -> str:
+    """Delete a movie from Radarr.
+    INPUT: movie_query, delete_files (default true).
+    OUTPUT: confirmation text or Error string.
+    """
     if not movie_query or not movie_query.strip():
         return "Error: movie_query must not be empty"
 
@@ -245,7 +260,10 @@ def delete_radarr_movie(movie_query: str, delete_files: bool = False) -> str:
 
 
 def get_radarr_current_downloads() -> str:
-    """Get movies currently downloading in Radarr with progress and ETA."""
+    """Get current Radarr downloads.
+    INPUT: none.
+    OUTPUT: TSV rows (download status/progress) or Error string.
+    """
     radarr_config = get_radarr_config()
     if isinstance(radarr_config, str):
         return radarr_config

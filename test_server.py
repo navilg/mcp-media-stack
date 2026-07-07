@@ -1,12 +1,28 @@
 import argparse
+import traceback
 import subprocess
 import sys
 from dotenv import load_dotenv
 import os
-from unittest.mock import patch
 
-import pytest
 import server
+
+
+GREEN = "\033[32m"
+RED = "\033[31m"
+YELLOW = "\033[33m"
+RESET = "\033[0m"
+PASS_ICON = "✓"
+FAIL_ICON = "✗"
+
+
+def _run_test_case(test_func) -> tuple[bool, str | None, str | None]:
+    """Run one test case and capture failures without stopping the full run."""
+    try:
+        test_func()
+        return True, None, None
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {exc}", traceback.format_exc().strip()
 
 
 def _parse_tsv(tsv_str: str) -> list[dict]:
@@ -27,6 +43,27 @@ def _parse_tsv(tsv_str: str) -> list[dict]:
     return records
 
 
+def _set_env(overrides: dict[str, str | None]) -> dict[str, str | None]:
+    """Temporarily set/unset env vars and return previous values for restore."""
+    previous: dict[str, str | None] = {}
+    for key, value in overrides.items():
+        previous[key] = os.environ.get(key)
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+    return previous
+
+
+def _restore_env(previous: dict[str, str | None]) -> None:
+    """Restore env vars previously captured by _set_env."""
+    for key, value in previous.items():
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -39,7 +76,9 @@ def test_valid_toolsets():
     assert server._parse_toolsets("") == ""
     assert server._parse_toolsets("trakt") == "trakt"
     assert server._parse_toolsets("radarr") == "radarr"
+    assert server._parse_toolsets("sonarr") == "sonarr"
     assert server._parse_toolsets("trakt,radarr") == "trakt,radarr"
+    assert server._parse_toolsets("trakt,sonarr") == "trakt,sonarr"
     assert server._parse_toolsets("radarr,trakt") == "radarr,trakt"
 
 
@@ -51,11 +90,17 @@ def test_parse_toolsets_handles_whitespace():
 
 def test_parse_toolsets_invalid():
     """Unknown toolset names raise ArgumentTypeError."""
-    with pytest.raises(argparse.ArgumentTypeError, match="invalid toolset: 'invalid_toolset'"):
+    try:
         server._parse_toolsets("invalid_toolset")
+        assert False, "Expected argparse.ArgumentTypeError for invalid toolset"
+    except argparse.ArgumentTypeError as exc:
+        assert "invalid toolset: 'invalid_toolset'" in str(exc)
 
-    with pytest.raises(argparse.ArgumentTypeError, match="invalid toolset: 'bogus'"):
+    try:
         server._parse_toolsets("trakt,bogus")
+        assert False, "Expected argparse.ArgumentTypeError for invalid toolset in list"
+    except argparse.ArgumentTypeError as exc:
+        assert "invalid toolset: 'bogus'" in str(exc)
 
 
 def test_compute_tags_to_disable_default():
@@ -74,6 +119,12 @@ def test_compute_tags_to_disable_with_radarr():
     """Disabling 'radarr' adds it to the deprecated tag."""
     tags = server._compute_tags_to_disable("radarr")
     assert tags == {"deprecated", "radarr"}
+
+
+def test_compute_tags_to_disable_with_sonarr():
+    """Disabling 'sonarr' adds it to the deprecated tag."""
+    tags = server._compute_tags_to_disable("sonarr")
+    assert tags == {"deprecated", "sonarr"}
 
 
 def test_compute_tags_to_disable_both():
@@ -163,17 +214,26 @@ def test_get_trakt_public_watched_shows():
 def test_get_trakt_public_watched_shows_validation_errors():
     print("\nTesting Trakt public watched shows validation")
 
-    with patch.dict(os.environ, {}, clear=True):
+    previous = _set_env({"TRAKT_CLIENT_ID": None})
+    try:
         result = server.get_trakt_public_watched_shows("test-user")
         assert result == "Error: TRAKT_CLIENT_ID is not set"
+    finally:
+        _restore_env(previous)
 
-    with patch.dict(os.environ, {"TRAKT_CLIENT_ID": "test-client-id"}, clear=True):
+    previous = _set_env({"TRAKT_CLIENT_ID": "test-client-id"})
+    try:
         result = server.get_trakt_public_watched_shows("   ")
         assert result == "Error: username must not be empty"
+    finally:
+        _restore_env(previous)
 
-    with patch.dict(os.environ, {"TRAKT_CLIENT_ID": "test-client-id"}, clear=True):
+    previous = _set_env({"TRAKT_CLIENT_ID": "test-client-id"})
+    try:
         result = server.get_trakt_public_watched_shows("test-user", days=0)
         assert result == "Error: days must be greater than 0"
+    finally:
+        _restore_env(previous)
 
 
 def test_get_trakt_public_liked_movies():
@@ -185,6 +245,22 @@ def test_get_trakt_public_liked_movies():
     print(f"Retrieved {len(records)} liked movies for user '{test_username}'")
     print("Sample movie:", records[0])
     assert all(int(record["user_rating"]) >= 7 for record in records)
+
+
+def test_get_trakt_public_liked_shows():
+    print(f"\nTesting Trakt public liked shows for user '{os.getenv('TEST_TRAKT_USERNAME')}'")
+    test_username = os.getenv("TEST_TRAKT_USERNAME")
+    result_tsv = server.get_trakt_public_liked_shows(test_username)
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+
+    records = _parse_tsv(result_tsv)
+    if not records:
+        print(f"No liked shows found for user '{test_username}'")
+        return
+
+    print(f"Retrieved {len(records)} liked shows for user '{test_username}'")
+    print("Sample show:", records[0])
+    assert "liked_consideration" in records[0]
 
 
 def test_get_trakt_public_disliked_movies():
@@ -208,6 +284,19 @@ def test_get_trakt_latest_high_rated_movies():
     assert all(float(record["average_rating"]) >= 7 for record in records)
 
 
+def test_get_trakt_latest_high_rated_shows():
+    print("\nTesting Trakt latest high-rated shows")
+
+    result_tsv = server.get_trakt_latest_high_rated_shows(days=7, threshold_rating=7.5, limit=10)
+
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    print(f"Retrieved {len(records)} latest high-rated shows from Trakt")
+    print("Sample show:", records[0])
+    assert all(float(record["average_rating"]) >= 7.5 for record in records)
+
+
 def test_get_trakt_popular_movies():
     print(f"\nTesting Trakt popular movies")
     result_tsv = server.get_trakt_popular_movies()
@@ -216,6 +305,39 @@ def test_get_trakt_popular_movies():
     print(f"Retrieved {len(records)} popular movies from Trakt")
     print("Sample movie:", records[0])
 
+
+def test_get_trakt_trending_movies():
+    print("\nTesting Trakt trending movies")
+
+    result_tsv = server.get_trakt_trending_movies()
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    assert len(records) <= 20
+    print(f"Retrieved {len(records)} trending movies from Trakt")
+    print("Sample movie:", records[0])
+
+
+def test_get_trakt_trending_shows():
+    print("\nTesting Trakt trending shows")
+
+    result_tsv = server.get_trakt_trending_shows()
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    assert len(records) <= 20
+    print(f"Retrieved {len(records)} trending shows from Trakt")
+    print("Sample show:", records[0])
+
+
+def test_get_trakt_popular_shows():
+    print("\nTesting Trakt popular shows")
+
+    result_tsv = server.get_trakt_popular_shows(limit=10)
+
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    print(f"Retrieved {len(records)} popular shows from Trakt")
+    print("Sample show:", records[0])
 
 def test_get_radarr_movies():
     print("\nTesting Radarr movies list")
@@ -258,27 +380,162 @@ def test_get_radarr_root_folders():
     assert "path" in records[0]
 
 
+def test_get_sonarr_validation_errors():
+    print("\nTesting Sonarr validation")
+
+    previous = _set_env({"SONARR_URL": None, "SONARR_API_KEY": None})
+    try:
+        result = server.get_sonarr_shows()
+        assert result == "Error: SONARR_URL is not set"
+    finally:
+        _restore_env(previous)
+
+    previous = _set_env({"SONARR_URL": "http://localhost:8989", "SONARR_API_KEY": None})
+    try:
+        result = server.get_sonarr_shows()
+        assert result == "Error: SONARR_API_KEY is not set"
+    finally:
+        _restore_env(previous)
+
+def test_get_sonarr_shows():
+    print("\nTesting Sonarr shows list")
+    result_tsv = server.get_sonarr_shows()
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0, "Expected at least one show in Sonarr"
+    print(f"Retrieved {len(records)} shows from Sonarr")
+    print("Sample show:", records[0])
+    assert "title" in records[0]
+    assert "monitored" in records[0]
+    assert "episode_file_count" in records[0]
+
+
+def test_get_sonarr_quality_profiles():
+    print("\nTesting Sonarr quality profiles list")
+
+    result_tsv = server.get_sonarr_quality_profiles()
+
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    print(f"Retrieved {len(records)} quality profiles from Sonarr")
+    print("Sample quality profile:", records[0])
+    assert "id" in records[0]
+    assert "name" in records[0]
+
+
+def test_get_sonarr_root_folders():
+    print("\nTesting Sonarr root folders list")
+
+    result_tsv = server.get_sonarr_root_folders()
+
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    print(f"Retrieved {len(records)} root folders from Sonarr")
+    print("Sample root folder:", records[0])
+    assert "id" in records[0]
+    assert "path" in records[0]
+
+
+def test_add_sonarr_show_validation_errors():
+    print("\nTesting Sonarr add show validation")
+
+    previous = _set_env({"SONARR_URL": None, "SONARR_API_KEY": None})
+    try:
+        result = server.add_sonarr_show("Dark", "/tv", 1, 1)
+        assert result == "Error: SONARR_URL is not set"
+    finally:
+        _restore_env(previous)
+
+    previous = _set_env({"SONARR_URL": "http://localhost:8989", "SONARR_API_KEY": "test"})
+    try:
+        result = server.add_sonarr_show("   ", "/tv", 1, 1)
+        assert result == "Error: show_query must not be empty"
+
+        result = server.add_sonarr_show("Dark", "   ", 1, 1)
+        assert result == "Error: root_folder_path must not be empty"
+
+        result = server.add_sonarr_show("Dark", "/tv", 1, -1)
+        assert result == "Error: season_number_to_monitor must be greater than or equal to 0"
+    finally:
+        _restore_env(previous)
+
+
+def test_delete_sonarr_show_validation_errors():
+    print("\nTesting Sonarr delete show validation")
+
+    previous = _set_env({"SONARR_URL": None, "SONARR_API_KEY": None})
+    try:
+        result = server.delete_sonarr_show("Dark")
+        assert result == "Error: SONARR_URL is not set"
+    finally:
+        _restore_env(previous)
+
+    previous = _set_env({"SONARR_URL": "http://localhost:8989", "SONARR_API_KEY": "test"})
+    try:
+        result = server.delete_sonarr_show("   ")
+        assert result == "Error: show_query must not be empty"
+    finally:
+        _restore_env(previous)
 
 
 if __name__ == "__main__":
     load_dotenv("test.env")
-    test_valid_toolsets()
-    test_parse_toolsets_handles_whitespace()
-    test_parse_toolsets_invalid()
-    test_compute_tags_to_disable_default()
-    test_compute_tags_to_disable_with_trakt()
-    test_compute_tags_to_disable_with_radarr()
-    test_compute_tags_to_disable_both()
-    test_compute_tags_to_disable_handles_whitespace()
-    test_compute_tags_to_disable_returns_fresh_set()
-    test_check_trakt_profile_privacy()
-    test_get_trakt_public_watched_movies()
-    test_get_trakt_public_liked_movies()
-    test_get_trakt_public_disliked_movies()
-    test_get_trakt_latest_high_rated_movies()
-    test_get_trakt_popular_movies()
-    test_get_radarr_movies()
-    test_get_radarr_quality_profiles()
-    test_get_radarr_root_folders()
-    test_get_trakt_public_watched_shows()
-    test_get_trakt_public_watched_shows_validation_errors()
+    tests = [
+        test_valid_toolsets,
+        test_parse_toolsets_handles_whitespace,
+        test_parse_toolsets_invalid,
+        test_compute_tags_to_disable_default,
+        test_compute_tags_to_disable_with_trakt,
+        test_compute_tags_to_disable_with_radarr,
+        test_compute_tags_to_disable_with_sonarr,
+        test_compute_tags_to_disable_both,
+        test_compute_tags_to_disable_handles_whitespace,
+        test_compute_tags_to_disable_returns_fresh_set,
+        test_check_trakt_profile_privacy,
+        test_get_trakt_public_watched_movies,
+        test_get_trakt_public_liked_movies,
+        test_get_trakt_public_liked_shows,
+        test_get_trakt_public_disliked_movies,
+        test_get_trakt_latest_high_rated_movies,
+        test_get_trakt_latest_high_rated_shows,
+        test_get_trakt_popular_movies,
+        test_get_trakt_trending_movies,
+        test_get_trakt_trending_shows,
+        test_get_trakt_popular_shows,
+        test_get_radarr_movies,
+        test_get_radarr_quality_profiles,
+        test_get_radarr_root_folders,
+        test_get_sonarr_validation_errors,
+        test_get_sonarr_shows,
+        test_get_sonarr_quality_profiles,
+        test_get_sonarr_root_folders,
+        test_add_sonarr_show_validation_errors,
+        test_delete_sonarr_show_validation_errors,
+        test_get_trakt_public_watched_shows,
+        test_get_trakt_public_watched_shows_validation_errors,
+    ]
+
+    passed = 0
+    failed = 0
+
+    print(f"{YELLOW}Running {len(tests)} test cases...{RESET}")
+    for test_func in tests:
+        ok, error, tb_text = _run_test_case(test_func)
+        if ok:
+            passed += 1
+            print(f"{GREEN}{PASS_ICON} PASS{RESET} {test_func.__name__}")
+        else:
+            failed += 1
+            print(f"{RED}{FAIL_ICON} FAIL{RESET} {test_func.__name__}")
+            print(f"{RED}  -> {error}{RESET}")
+            if tb_text:
+                print(f"{RED}{tb_text}{RESET}")
+
+    print("\n" + "=" * 60)
+    print(f"Summary: passed={passed}, failed={failed}, total={len(tests)}")
+    if failed == 0:
+        print(f"{GREEN}All test cases passed.{RESET}")
+    else:
+        print(f"{RED}Some test cases failed. See logs above.{RESET}")

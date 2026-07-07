@@ -18,10 +18,23 @@ from media_stack.radarr import (
     get_radarr_root_folders,
     get_radarr_quality_profiles,
 )
+from media_stack.sonarr import (
+    add_sonarr_show,
+    delete_sonarr_show,
+    get_sonarr_current_downloads,
+    get_sonarr_quality_profiles,
+    get_sonarr_root_folders,
+    get_sonarr_shows,
+)
 from media_stack.trakt import (
     check_trakt_profile_privacy,
     get_trakt_latest_high_rated_movies,
+    get_trakt_latest_high_rated_shows,
+    get_trakt_public_liked_shows,
     get_trakt_popular_movies,
+    get_trakt_popular_shows,
+    get_trakt_trending_movies,
+    get_trakt_trending_shows,
     get_trakt_public_disliked_movies,
     get_trakt_public_liked_movies,
     get_trakt_public_watched_movies,
@@ -37,9 +50,14 @@ def _register_tools() -> None:
         get_trakt_public_watched_movies,
         get_trakt_public_watched_shows,
         get_trakt_public_liked_movies,
+        get_trakt_public_liked_shows,
         get_trakt_public_disliked_movies,
         get_trakt_latest_high_rated_movies,
+        get_trakt_latest_high_rated_shows,
         get_trakt_popular_movies,
+        get_trakt_popular_shows,
+        get_trakt_trending_movies,
+        get_trakt_trending_shows,
     ]
     radarr_tools = [
         get_radarr_movies,
@@ -49,12 +67,23 @@ def _register_tools() -> None:
         delete_radarr_movie,
         get_radarr_current_downloads,
     ]
+    sonarr_tools = [
+        get_sonarr_shows,
+        get_sonarr_quality_profiles,
+        get_sonarr_root_folders,
+        add_sonarr_show,
+        delete_sonarr_show,
+        get_sonarr_current_downloads,
+    ]
 
     for tool in trakt_tools:
         mcp.tool(tags={"trakt"})(tool)
 
     for tool in radarr_tools:
         mcp.tool(tags={"radarr"})(tool)
+
+    for tool in sonarr_tools:
+        mcp.tool(tags={"sonarr"})(tool)
 
 
 def main() -> None:
