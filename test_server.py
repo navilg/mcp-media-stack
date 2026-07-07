@@ -438,6 +438,30 @@ def test_get_sonarr_root_folders():
     assert "path" in records[0]
 
 
+def test_add_sonarr_show_validation_errors():
+    print("\nTesting Sonarr add show validation")
+
+    previous = _set_env({"SONARR_URL": None, "SONARR_API_KEY": None})
+    try:
+        result = server.add_sonarr_show("Dark", "/tv", 1, 1)
+        assert result == "Error: SONARR_URL is not set"
+    finally:
+        _restore_env(previous)
+
+    previous = _set_env({"SONARR_URL": "http://localhost:8989", "SONARR_API_KEY": "test"})
+    try:
+        result = server.add_sonarr_show("   ", "/tv", 1, 1)
+        assert result == "Error: show_query must not be empty"
+
+        result = server.add_sonarr_show("Dark", "   ", 1, 1)
+        assert result == "Error: root_folder_path must not be empty"
+
+        result = server.add_sonarr_show("Dark", "/tv", 1, -1)
+        assert result == "Error: season_number_to_monitor must be greater than or equal to 0"
+    finally:
+        _restore_env(previous)
+
+
 if __name__ == "__main__":
     load_dotenv("test.env")
     tests = [
@@ -469,6 +493,7 @@ if __name__ == "__main__":
         test_get_sonarr_shows,
         test_get_sonarr_quality_profiles,
         test_get_sonarr_root_folders,
+        test_add_sonarr_show_validation_errors,
         test_get_trakt_public_watched_shows,
         test_get_trakt_public_watched_shows_validation_errors,
     ]

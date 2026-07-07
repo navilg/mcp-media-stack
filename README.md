@@ -22,6 +22,7 @@ The server currently exposes these MCP tools:
 - `get_sonarr_shows()`
 - `get_sonarr_quality_profiles()`
 - `get_sonarr_root_folders()`
+- `add_sonarr_show(show_query, root_folder_path, quality_profile_id, season_number_to_monitor)`
 
 ## Prerequisites
 
@@ -93,7 +94,7 @@ Available toolset names:
 
 - `trakt`: All Trakt tools (profile, watched, liked, disliked, latest, popular, trending)
 - `radarr`: All Radarr tools (list, quality, root folders, add, delete, downloads)
-- `sonarr`: Sonarr tools (`get_sonarr_shows`, `get_sonarr_quality_profiles`, `get_sonarr_root_folders`)
+- `sonarr`: Sonarr tools (`get_sonarr_shows`, `get_sonarr_quality_profiles`, `get_sonarr_root_folders`, `add_sonarr_show`)
 
 Examples:
 
@@ -173,3 +174,4 @@ docker stop mcp-media-stack
 - `add_radarr_movie` looks up the movie by query string, then adds it with monitor set to movie only, minimum availability set to released, and search enabled.
 - `delete_radarr_movie` looks up the movie by query string before deleting it; set `delete_files=True` to remove the file from disk as well.
 - `get_radarr_current_downloads` reports queue items whose status is `downloading`, including progress percent and time-left fields when Radarr provides them.
+- `add_sonarr_show` adds a series and monitors only the requested season, not all seasons.

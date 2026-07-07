@@ -124,3 +124,98 @@ def get_sonarr_root_folders() -> str:
 
     root_folders.sort(key=lambda folder: folder["path"] or "")
     return to_tsv(root_folders)
+
+
+def add_sonarr_show(
+    show_query: str,
+    root_folder_path: str,
+    quality_profile_id: int,
+    season_number_to_monitor: int,
+) -> str:
+    """Add a show to Sonarr and monitor only one season.
+    INPUT: show_query, root_folder_path, quality_profile_id, season_number_to_monitor.
+    OUTPUT: confirmation text or Error string.
+    """
+    if not show_query or not show_query.strip():
+        return "Error: show_query must not be empty"
+    if not root_folder_path or not root_folder_path.strip():
+        return "Error: root_folder_path must not be empty"
+    if season_number_to_monitor < 0:
+        return "Error: season_number_to_monitor must be greater than or equal to 0"
+
+    sonarr_config = get_sonarr_config()
+    if isinstance(sonarr_config, str):
+        return sonarr_config
+
+    sonarr_url, sonarr_api_key = sonarr_config
+    lookup_endpoint = f"{sonarr_url}/api/v3/series/lookup"
+    headers = {"X-Api-Key": sonarr_api_key}
+
+    try:
+        lookup_response = requests.get(
+            lookup_endpoint,
+            params={"term": show_query.strip()},
+            headers=headers,
+            timeout=20,
+        )
+        lookup_response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to look up series in Sonarr: {exc}"
+
+    lookup_results = lookup_response.json()
+    if not lookup_results:
+        return f"Error: No Sonarr series match found for '{show_query}'"
+
+    selected_series = None
+    normalized_query = show_query.strip().lower()
+    for candidate in lookup_results:
+        candidate_title = str(candidate.get("title", "")).strip().lower()
+        candidate_title_slug = str(candidate.get("titleSlug", "")).strip().lower()
+        if normalized_query == candidate_title or normalized_query == candidate_title_slug:
+            selected_series = candidate
+            break
+
+    if selected_series is None:
+        selected_series = lookup_results[0]
+
+    seasons = selected_series.get("seasons", [])
+    season_numbers = {season.get("seasonNumber") for season in seasons}
+    if season_number_to_monitor not in season_numbers:
+        return (
+            "Error: season_number_to_monitor "
+            f"{season_number_to_monitor} is not available for '{selected_series.get('title') or show_query.strip()}'"
+        )
+
+    series_payload = dict(selected_series)
+    series_payload["monitored"] = True
+    series_payload["rootFolderPath"] = root_folder_path
+    series_payload["qualityProfileId"] = quality_profile_id
+    series_payload["addOptions"] = {"searchForMissingEpisodes": True}
+
+    # Keep monitoring limited to the requested season only.
+    series_payload["seasons"] = [
+        {
+            **season,
+            "monitored": season.get("seasonNumber") == season_number_to_monitor,
+        }
+        for season in seasons
+    ]
+
+    try:
+        add_response = requests.post(
+            f"{sonarr_url}/api/v3/series",
+            json=series_payload,
+            headers=headers,
+            timeout=20,
+        )
+        add_response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to add show to Sonarr: {exc}"
+
+    added_series = add_response.json() if add_response.content else series_payload
+    added_title = added_series.get("title") or series_payload.get("title") or show_query.strip()
+    added_path = added_series.get("path") or root_folder_path
+    return (
+        f"Added Sonarr show '{added_title}' at '{added_path}' with quality profile {quality_profile_id}; "
+        f"monitoring season {season_number_to_monitor} only"
+    )
