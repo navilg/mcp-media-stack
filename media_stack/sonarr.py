@@ -315,7 +315,7 @@ def get_sonarr_current_downloads() -> str:
 
     downloads: list[dict] = []
     for item in queue_items:
-        if str(item.get("status", "")).lower() != "downloading":
+        if str(item.get("status", "")).lower() != "downloading" and str(item.get("status", "")).lower() != "queued":
             continue
 
         size = item.get("size")
