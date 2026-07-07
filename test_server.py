@@ -1,10 +1,28 @@
 import argparse
+import traceback
 import subprocess
 import sys
 from dotenv import load_dotenv
 import os
 
 import server
+
+
+GREEN = "\033[32m"
+RED = "\033[31m"
+YELLOW = "\033[33m"
+RESET = "\033[0m"
+PASS_ICON = "✓"
+FAIL_ICON = "✗"
+
+
+def _run_test_case(test_func) -> tuple[bool, str | None, str | None]:
+    """Run one test case and capture failures without stopping the full run."""
+    try:
+        test_func()
+        return True, None, None
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {exc}", traceback.format_exc().strip()
 
 
 def _parse_tsv(tsv_str: str) -> list[dict]:
@@ -422,33 +440,58 @@ def test_get_sonarr_root_folders():
 
 if __name__ == "__main__":
     load_dotenv("test.env")
-    test_valid_toolsets()
-    test_parse_toolsets_handles_whitespace()
-    test_parse_toolsets_invalid()
-    test_compute_tags_to_disable_default()
-    test_compute_tags_to_disable_with_trakt()
-    test_compute_tags_to_disable_with_radarr()
-    test_compute_tags_to_disable_with_sonarr()
-    test_compute_tags_to_disable_both()
-    test_compute_tags_to_disable_handles_whitespace()
-    test_compute_tags_to_disable_returns_fresh_set()
-    test_check_trakt_profile_privacy()
-    test_get_trakt_public_watched_movies()
-    test_get_trakt_public_liked_movies()
-    test_get_trakt_public_liked_shows()
-    test_get_trakt_public_disliked_movies()
-    test_get_trakt_latest_high_rated_movies()
-    test_get_trakt_latest_high_rated_shows()
-    test_get_trakt_popular_movies()
-    test_get_trakt_trending_movies()
-    test_get_trakt_trending_shows()
-    test_get_trakt_popular_shows()
-    test_get_radarr_movies()
-    test_get_radarr_quality_profiles()
-    test_get_radarr_root_folders()
-    test_get_sonarr_validation_errors()
-    test_get_sonarr_shows()
-    test_get_sonarr_quality_profiles()
-    test_get_sonarr_root_folders()
-    test_get_trakt_public_watched_shows()
-    test_get_trakt_public_watched_shows_validation_errors()
+    tests = [
+        test_valid_toolsets,
+        test_parse_toolsets_handles_whitespace,
+        test_parse_toolsets_invalid,
+        test_compute_tags_to_disable_default,
+        test_compute_tags_to_disable_with_trakt,
+        test_compute_tags_to_disable_with_radarr,
+        test_compute_tags_to_disable_with_sonarr,
+        test_compute_tags_to_disable_both,
+        test_compute_tags_to_disable_handles_whitespace,
+        test_compute_tags_to_disable_returns_fresh_set,
+        test_check_trakt_profile_privacy,
+        test_get_trakt_public_watched_movies,
+        test_get_trakt_public_liked_movies,
+        test_get_trakt_public_liked_shows,
+        test_get_trakt_public_disliked_movies,
+        test_get_trakt_latest_high_rated_movies,
+        test_get_trakt_latest_high_rated_shows,
+        test_get_trakt_popular_movies,
+        test_get_trakt_trending_movies,
+        test_get_trakt_trending_shows,
+        test_get_trakt_popular_shows,
+        test_get_radarr_movies,
+        test_get_radarr_quality_profiles,
+        test_get_radarr_root_folders,
+        test_get_sonarr_validation_errors,
+        test_get_sonarr_shows,
+        test_get_sonarr_quality_profiles,
+        test_get_sonarr_root_folders,
+        test_get_trakt_public_watched_shows,
+        test_get_trakt_public_watched_shows_validation_errors,
+    ]
+
+    passed = 0
+    failed = 0
+
+    print(f"{YELLOW}Running {len(tests)} test cases...{RESET}")
+    for test_func in tests:
+        ok, error, tb_text = _run_test_case(test_func)
+        if ok:
+            passed += 1
+            print(f"{GREEN}{PASS_ICON} PASS{RESET} {test_func.__name__}")
+        else:
+            failed += 1
+            print(f"{RED}{FAIL_ICON} FAIL{RESET} {test_func.__name__}")
+            print(f"{RED}  -> {error}{RESET}")
+            if tb_text:
+                print(f"{RED}{tb_text}{RESET}")
+
+    print("\n" + "=" * 60)
+    print(f"Summary: passed={passed}, failed={failed}, total={len(tests)}")
+    if failed == 0:
+        print(f"{GREEN}All test cases passed.{RESET}")
+    else:
+        print(f"{RED}Some test cases failed. See logs above.{RESET}")
