@@ -58,7 +58,9 @@ def test_valid_toolsets():
     assert server._parse_toolsets("") == ""
     assert server._parse_toolsets("trakt") == "trakt"
     assert server._parse_toolsets("radarr") == "radarr"
+    assert server._parse_toolsets("sonarr") == "sonarr"
     assert server._parse_toolsets("trakt,radarr") == "trakt,radarr"
+    assert server._parse_toolsets("trakt,sonarr") == "trakt,sonarr"
     assert server._parse_toolsets("radarr,trakt") == "radarr,trakt"
 
 
@@ -99,6 +101,12 @@ def test_compute_tags_to_disable_with_radarr():
     """Disabling 'radarr' adds it to the deprecated tag."""
     tags = server._compute_tags_to_disable("radarr")
     assert tags == {"deprecated", "radarr"}
+
+
+def test_compute_tags_to_disable_with_sonarr():
+    """Disabling 'sonarr' adds it to the deprecated tag."""
+    tags = server._compute_tags_to_disable("sonarr")
+    assert tags == {"deprecated", "sonarr"}
 
 
 def test_compute_tags_to_disable_both():
@@ -354,6 +362,62 @@ def test_get_radarr_root_folders():
     assert "path" in records[0]
 
 
+def test_get_sonarr_validation_errors():
+    print("\nTesting Sonarr validation")
+
+    previous = _set_env({"SONARR_URL": None, "SONARR_API_KEY": None})
+    try:
+        result = server.get_sonarr_shows()
+        assert result == "Error: SONARR_URL is not set"
+    finally:
+        _restore_env(previous)
+
+    previous = _set_env({"SONARR_URL": "http://localhost:8989", "SONARR_API_KEY": None})
+    try:
+        result = server.get_sonarr_shows()
+        assert result == "Error: SONARR_API_KEY is not set"
+    finally:
+        _restore_env(previous)
+
+def test_get_sonarr_shows():
+    print("\nTesting Sonarr shows list")
+    result_tsv = server.get_sonarr_shows()
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0, "Expected at least one show in Sonarr"
+    print(f"Retrieved {len(records)} shows from Sonarr")
+    print("Sample show:", records[0])
+    assert "title" in records[0]
+    assert "monitored" in records[0]
+    assert "episode_file_count" in records[0]
+
+
+def test_get_sonarr_quality_profiles():
+    print("\nTesting Sonarr quality profiles list")
+
+    result_tsv = server.get_sonarr_quality_profiles()
+
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    print(f"Retrieved {len(records)} quality profiles from Sonarr")
+    print("Sample quality profile:", records[0])
+    assert "id" in records[0]
+    assert "name" in records[0]
+
+
+def test_get_sonarr_root_folders():
+    print("\nTesting Sonarr root folders list")
+
+    result_tsv = server.get_sonarr_root_folders()
+
+    assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
+    records = _parse_tsv(result_tsv)
+    assert len(records) > 0
+    print(f"Retrieved {len(records)} root folders from Sonarr")
+    print("Sample root folder:", records[0])
+    assert "id" in records[0]
+    assert "path" in records[0]
 
 
 if __name__ == "__main__":
@@ -364,6 +428,7 @@ if __name__ == "__main__":
     test_compute_tags_to_disable_default()
     test_compute_tags_to_disable_with_trakt()
     test_compute_tags_to_disable_with_radarr()
+    test_compute_tags_to_disable_with_sonarr()
     test_compute_tags_to_disable_both()
     test_compute_tags_to_disable_handles_whitespace()
     test_compute_tags_to_disable_returns_fresh_set()
@@ -381,5 +446,9 @@ if __name__ == "__main__":
     test_get_radarr_movies()
     test_get_radarr_quality_profiles()
     test_get_radarr_root_folders()
+    test_get_sonarr_validation_errors()
+    test_get_sonarr_shows()
+    test_get_sonarr_quality_profiles()
+    test_get_sonarr_root_folders()
     test_get_trakt_public_watched_shows()
     test_get_trakt_public_watched_shows_validation_errors()

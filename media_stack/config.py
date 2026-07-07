@@ -16,6 +16,18 @@ def get_radarr_config() -> tuple[str, str] | str:
     return radarr_url.rstrip("/"), radarr_api_key
 
 
+def get_sonarr_config() -> tuple[str, str] | str:
+    sonarr_url = os.getenv("SONARR_URL")
+    sonarr_api_key = os.getenv("SONARR_API_KEY")
+
+    if not sonarr_url:
+        return "Error: SONARR_URL is not set"
+    if not sonarr_api_key:
+        return "Error: SONARR_API_KEY is not set"
+
+    return sonarr_url.rstrip("/"), sonarr_api_key
+
+
 def parse_toolsets(value: str) -> str:
     """Validate comma-separated toolset names."""
     if not value:
