@@ -219,3 +219,67 @@ def add_sonarr_show(
         f"Added Sonarr show '{added_title}' at '{added_path}' with quality profile {quality_profile_id}; "
         f"monitoring season {season_number_to_monitor} only"
     )
+
+
+def delete_sonarr_show(show_query: str, delete_files: bool = False) -> str:
+    """Delete a show from Sonarr.
+    INPUT: show_query, delete_files (default false).
+    OUTPUT: confirmation text or Error string.
+    """
+    if not show_query or not show_query.strip():
+        return "Error: show_query must not be empty"
+
+    sonarr_config = get_sonarr_config()
+    if isinstance(sonarr_config, str):
+        return sonarr_config
+
+    sonarr_url, sonarr_api_key = sonarr_config
+    lookup_endpoint = f"{sonarr_url}/api/v3/series/lookup"
+    headers = {"X-Api-Key": sonarr_api_key}
+
+    try:
+        lookup_response = requests.get(
+            lookup_endpoint,
+            params={"term": show_query.strip()},
+            headers=headers,
+            timeout=20,
+        )
+        lookup_response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to look up series in Sonarr: {exc}"
+
+    lookup_results = lookup_response.json()
+    if not lookup_results:
+        return f"Error: No Sonarr series match found for '{show_query}'"
+
+    selected_series = None
+    normalized_query = show_query.strip().lower()
+    for candidate in lookup_results:
+        candidate_title = str(candidate.get("title", "")).strip().lower()
+        candidate_title_slug = str(candidate.get("titleSlug", "")).strip().lower()
+        if normalized_query == candidate_title or normalized_query == candidate_title_slug:
+            selected_series = candidate
+            break
+
+    if selected_series is None:
+        selected_series = lookup_results[0]
+
+    series_id = selected_series.get("id")
+    series_title = selected_series.get("title") or show_query.strip()
+    if series_id is None:
+        return f"Error: Sonarr lookup for '{series_title}' did not include a series id"
+
+    delete_endpoint = f"{sonarr_url}/api/v3/series/{series_id}"
+
+    try:
+        response = requests.delete(
+            delete_endpoint,
+            params={"deleteFiles": str(delete_files).lower()},
+            headers=headers,
+            timeout=20,
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to delete show from Sonarr: {exc}"
+
+    return f"Deleted Sonarr show '{series_title}' (delete_files={delete_files})"

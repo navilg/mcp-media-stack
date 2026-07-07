@@ -20,6 +20,7 @@ from media_stack.radarr import (
 )
 from media_stack.sonarr import (
     add_sonarr_show,
+    delete_sonarr_show,
     get_sonarr_quality_profiles,
     get_sonarr_root_folders,
     get_sonarr_shows,
@@ -70,6 +71,7 @@ def _register_tools() -> None:
         get_sonarr_quality_profiles,
         get_sonarr_root_folders,
         add_sonarr_show,
+        delete_sonarr_show,
     ]
 
     for tool in trakt_tools:

@@ -462,6 +462,24 @@ def test_add_sonarr_show_validation_errors():
         _restore_env(previous)
 
 
+def test_delete_sonarr_show_validation_errors():
+    print("\nTesting Sonarr delete show validation")
+
+    previous = _set_env({"SONARR_URL": None, "SONARR_API_KEY": None})
+    try:
+        result = server.delete_sonarr_show("Dark")
+        assert result == "Error: SONARR_URL is not set"
+    finally:
+        _restore_env(previous)
+
+    previous = _set_env({"SONARR_URL": "http://localhost:8989", "SONARR_API_KEY": "test"})
+    try:
+        result = server.delete_sonarr_show("   ")
+        assert result == "Error: show_query must not be empty"
+    finally:
+        _restore_env(previous)
+
+
 if __name__ == "__main__":
     load_dotenv("test.env")
     tests = [
@@ -494,6 +512,7 @@ if __name__ == "__main__":
         test_get_sonarr_quality_profiles,
         test_get_sonarr_root_folders,
         test_add_sonarr_show_validation_errors,
+        test_delete_sonarr_show_validation_errors,
         test_get_trakt_public_watched_shows,
         test_get_trakt_public_watched_shows_validation_errors,
     ]
