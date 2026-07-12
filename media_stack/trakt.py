@@ -792,3 +792,57 @@ def get_trakt_popular_movies(limit: int = 50) -> str:
         )
 
     return to_tsv(popular_movies)
+
+
+def search_trakt_movie_by_title(title: str, limit: int = 20) -> str:
+    """Search movies in Trakt by title.
+    INPUT: title (required), limit (>0, default 20).
+    OUTPUT: TSV rows (matching movie metadata) or Error string.
+    """
+    headers = _get_trakt_headers()
+
+    if isinstance(headers, str):
+        return headers
+    if not title or not title.strip():
+        return "Error: title must not be empty"
+    if limit <= 0:
+        return "Error: limit must be greater than 0"
+
+    endpoint = f"{TRAKT_API_BASE}/search/movie"
+    params = {
+        "query": title.strip(),
+        "extended": "full",
+        "limit": str(limit),
+    }
+
+    try:
+        response = requests.get(endpoint, params=params, headers=headers, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return f"Error: Failed to search movies in Trakt: {exc}"
+
+    search_data = response.json()
+    matched_movies: list[dict] = []
+    for item in search_data:
+        movie = item.get("movie", {}) if isinstance(item, dict) else {}
+        ids = movie.get("ids", {}) if isinstance(movie, dict) else {}
+        matched_movies.append(
+            {
+                "title": movie.get("title"),
+                "year": movie.get("year"),
+                "release_date": movie.get("released"),
+                "runtime": str(movie.get("runtime")) + " min" if movie.get("runtime") else None,
+                "average_rating": round(movie.get("rating"), 2)
+                if isinstance(movie.get("rating"), (int, float))
+                else None,
+                "genre": movie.get("genres", []),
+                "certification": movie.get("certification"),
+                "language": movie.get("language"),
+                "trakt_id": ids.get("trakt"),
+                "tmdb_id": ids.get("tmdb"),
+                "imdb_id": ids.get("imdb"),
+                "overview": movie.get("overview"),
+            }
+        )
+
+    return to_tsv(matched_movies)

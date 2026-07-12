@@ -39,6 +39,7 @@ from media_stack.trakt import (
     get_trakt_public_liked_movies,
     get_trakt_public_watched_movies,
     get_trakt_public_watched_shows,
+    search_trakt_movie_by_title,
 )
 
 mcp = FastMCP(name="Media Stack MCP")
@@ -58,6 +59,7 @@ def _register_tools() -> None:
         get_trakt_popular_shows,
         get_trakt_trending_movies,
         get_trakt_trending_shows,
+        search_trakt_movie_by_title,
     ]
     radarr_tools = [
         get_radarr_movies,
