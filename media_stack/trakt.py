@@ -794,9 +794,9 @@ def get_trakt_popular_movies(limit: int = 50) -> str:
     return to_tsv(popular_movies)
 
 
-def search_trakt_movie_by_title(title: str, limit: int = 20) -> str:
+def search_trakt_movie_by_title(title: str, limit: int = 5) -> str:
     """Search movies in Trakt by title.
-    INPUT: title (required), limit (>0, default 20).
+    INPUT: title (required), limit (>0, default 5).
     OUTPUT: TSV rows (matching movie metadata) or Error string.
     """
     headers = _get_trakt_headers()
