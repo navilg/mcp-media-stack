@@ -343,7 +343,7 @@ def test_get_trakt_popular_shows():
 def test_search_trakt_movie_by_title():
     print("\nTesting Trakt movie title search")
 
-    result_tsv = server.search_trakt_movie_by_title("Avatar", year=2009)
+    result_tsv = server.search_trakt_movie_by_title("Avatar")
     assert not result_tsv.startswith("Error:"), f"Tool returned an error: {result_tsv}"
     records = _parse_tsv(result_tsv)
     assert len(records) > 0

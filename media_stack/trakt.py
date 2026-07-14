@@ -794,9 +794,9 @@ def get_trakt_popular_movies(limit: int = 50) -> str:
     return to_tsv(popular_movies)
 
 
-def search_trakt_movie_by_title(title: str, year: int | None = None, limit: int = 5) -> str:
+def search_trakt_movie_by_title(title: str, limit: int = 5) -> str:
     """Search movies in Trakt by title.
-    INPUT: title (required), year (optional), limit (>0, default 5).
+    INPUT: title (required), limit (>0, default 5).
     OUTPUT: TSV rows (matching movie metadata) or Error string.
     """
     headers = _get_trakt_headers()
@@ -805,14 +805,12 @@ def search_trakt_movie_by_title(title: str, year: int | None = None, limit: int 
         return headers
     if not title or not title.strip():
         return "Error: title must not be empty"
-    if year is not None and year <= 0:
-        return "Error: year must be greater than 0"
     if limit <= 0:
         return "Error: limit must be greater than 0"
 
     endpoint = f"{TRAKT_API_BASE}/search/movie"
     params = {
-        "query": title.strip() + (f" {year}" if year is not None else ""),
+        "query": title.strip(),
         "extended": "full",
         "limit": str(limit),
     }
