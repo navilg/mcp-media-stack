@@ -25,7 +25,8 @@ The server currently exposes these MCP tools:
 - `add_sonarr_show(show_query, root_folder_path, quality_profile_id, season_number_to_monitor)`
 - `delete_sonarr_show(show_query, delete_files=False)`
 - `get_sonarr_current_downloads()`
-- `search_trakt_movie_by_title(title, limit=20)`
+- `search_trakt_movie_by_title(title, year=None, limit=5)`
+- `search_trakt_show_by_title(title, year=None, limit=5)`
 
 ## Prerequisites
 
